@@ -1,0 +1,16 @@
+project_id = "xpulhejhfgegmtsnrlyr"
+
+[api]
+port = 59421
+
+[db]
+port = 59422
+
+[studio]
+port = 59423
+
+[inbucket]
+port = 59424
+
+[analytics]
+port = 59427
