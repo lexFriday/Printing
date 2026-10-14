@@ -2,26 +2,21 @@ import { Link } from "@tanstack/react-router";
 import type { jsPDF as JsPDF } from "jspdf";
 import { createContext, useContext, type CSSProperties, type ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Download, Printer } from "lucide-react";
+import { ArrowLeft, Download, RefreshCw, Settings2, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { PrintCalibrationPanel } from "@/components/print/PrintCalibrationPanel";
+import { usePrintAgent } from "@/hooks/usePrintAgent";
 import {
   DEFAULT_PRINT_CALIBRATION,
-  legacyCalibrationKey,
   printCalibrationKey,
   readLegacyCalibration,
   readPrintCalibration,
-  savePrintCalibration,
   type CalibrationDocumentType,
   type PersistedCalibrationDocumentType,
   type PrintCalibration,
 } from "@/lib/printCalibration";
-import {
-  loadPrintCalibration,
-  resetPrintCalibration,
-  savePrintCalibrationForUser,
-} from "@/lib/printCalibrationData";
+import { loadPrintCalibration } from "@/lib/printCalibrationData";
 
 const PrintCalibrationContext = createContext<{
   calibration: PrintCalibration;
@@ -41,6 +36,9 @@ export function PrintShell({
   buildGeneratedPdf,
   buildGeneratedPrintPdf,
   downloadExcel,
+  hideDownloadPdf = false,
+  hideDownloadExcel = false,
+  directPrintJob,
   children,
   calibrationDocument,
 }: {
@@ -64,16 +62,16 @@ export function PrintShell({
   buildGeneratedPdf?: (calibration: PrintCalibration) => Promise<JsPDF | null> | JsPDF | null;
   buildGeneratedPrintPdf?: (calibration: PrintCalibration) => Promise<JsPDF | null> | JsPDF | null;
   downloadExcel?: () => void;
+  hideDownloadPdf?: boolean;
+  hideDownloadExcel?: boolean;
+  directPrintJob?: { identifier: string; label?: string; jobData?: unknown };
   children: ReactNode;
   calibrationDocument?: CalibrationDocumentType;
 }) {
-  const [pdfAction, setPdfAction] = useState<"download" | "print" | null>(null);
+  const [pdfAction, setPdfAction] = useState<"download" | "direct" | null>(null);
+  const printAgent = usePrintAgent();
   const [calibration, setCalibration] = useState<PrintCalibration>(DEFAULT_PRINT_CALIBRATION);
-  const [calibrationLoading, setCalibrationLoading] = useState(!!calibrationDocument),
-    [calibrationSaving, setCalibrationSaving] = useState(false),
-    [calibrationSaved, setCalibrationSaved] = useState(true),
-    [draftValid, setDraftValid] = useState(true);
-  const editVersion = useRef(0);
+  const [, setCalibrationLoading] = useState(!!calibrationDocument);
   useEffect(() => {
     if (!calibrationDocument) return;
     if (!isPersisted(calibrationDocument)) {
@@ -82,18 +80,17 @@ export function PrintShell({
       return;
     }
     let active = true;
-    const version = editVersion.current;
     setCalibrationLoading(true);
     loadPrintCalibration(calibrationDocument)
       .then((saved) => {
-        if (active && version === editVersion.current)
+        if (active)
           setCalibration(
             saved ?? readLegacyCalibration(calibrationDocument) ?? DEFAULT_PRINT_CALIBRATION,
           );
       })
       .catch((error) => {
         console.warn("Print calibration storage is unavailable; using default alignment.", error);
-        if (active && version === editVersion.current)
+        if (active)
           setCalibration(readLegacyCalibration(calibrationDocument) ?? DEFAULT_PRINT_CALIBRATION);
       })
       .finally(() => active && setCalibrationLoading(false));
@@ -157,37 +154,9 @@ export function PrintShell({
     }
   }
 
-  async function printGeneratedPdf() {
-    setPdfAction("print");
-    try {
-      const pdf = await buildPdf(true);
-      if (!pdf) return;
-      pdf.autoPrint({ variant: "non-conform" });
-      const url = URL.createObjectURL(pdf.output("blob"));
-      writePdfViewer(window, url, safePdfName(pdfFileName), { autoPrint: true });
-    } catch (error) {
-      console.error(error);
-      toast.error(pdfDownloadErrorMessage(error));
-    } finally {
-      setPdfAction(null);
-    }
-  }
-
-  function handlePrint() {
-    if (downloadExcel) {
-      downloadExcel();
-      return;
-    }
-    if (printWithGeneratedPdf) {
-      void printGeneratedPdf();
-      return;
-    }
-    window.print();
-  }
-
   return (
     <div
-      className={`print-shell min-h-screen bg-slate-100 p-6 ${calibrationDocument ? "calibration-layout" : ""}`}
+      className="print-shell min-h-screen bg-slate-100 p-6"
       data-print-profile={printProfile ? JSON.stringify(printProfile) : undefined}
     >
       <style>{`
@@ -220,7 +189,7 @@ export function PrintShell({
             background: white !important;
           }
 
-          .print-actions {
+          .print-actions, .print-agent-alert {
             display: none !important;
           }
 
@@ -229,97 +198,262 @@ export function PrintShell({
           }
         }
 
-        @media (min-width: 1024px) {
-          .calibration-layout { display: grid; grid-template-columns: minmax(340px, 380px) minmax(0, 1fr); gap: 1.25rem; align-items: start; }
-          .calibration-layout > .print-actions { grid-column: 1 / -1; max-width: none; }
-          .calibration-layout > .calibration-controls { grid-column: 1; grid-row: 2; display: block; width: auto; max-width: none; margin: 0; }
-          .calibration-layout > .print-calibration-frame { grid-column: 2; grid-row: 2; min-width: 0; }
-        }
-
         .print-calibration-frame .print-document,
         .print-calibration-frame .quotation-print-document {
           transform: translate(calc(var(--print-calibration-x, 0) * 1mm), calc(var(--print-calibration-y, 0) * 1mm));
         }
       `}</style>
+
+      {/* Polished offline notice placed at the top */}
+      {directPrintJob && printAgent.isRunning === false ? (
+        <div className="print-agent-alert mx-auto mb-3.5 flex max-w-[8.5in] flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-amber-200/90 bg-amber-50/95 px-4 py-2.5 shadow-xs text-xs text-amber-950 backdrop-blur-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-200/80 text-amber-800">
+              <Zap className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="font-semibold text-amber-950">Direct Print Helper is offline</p>
+              <p className="text-[11px] text-amber-800/85">
+                Launch the print helper on your computer to enable instant 1-click printing.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs border-amber-300/80 bg-white/90 hover:bg-white text-amber-900 shadow-2xs"
+              onClick={async () => {
+                const connected = await printAgent.checkStatus();
+                if (connected) {
+                  toast.success("Print helper connected!");
+                } else {
+                  toast.error("Could not connect to print helper.");
+                }
+              }}
+              disabled={printAgent.checking}
+            >
+              <RefreshCw
+                className={`h-3 w-3 mr-1.5 ${printAgent.checking ? "animate-spin" : ""}`}
+              />
+              Check again
+            </Button>
+            {(() => {
+              const isClientMac =
+                typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.userAgent);
+              const downloadHref = isClientMac
+                ? "/Automate DirectPrint-mac.zip"
+                : "/Automate DirectPrint.exe";
+              const downloadName = isClientMac
+                ? "Automate DirectPrint-mac.zip"
+                : "Automate DirectPrint.exe";
+              return (
+                <Button
+                  asChild
+                  size="sm"
+                  className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white shadow-2xs"
+                >
+                  <a href={downloadHref} download={downloadName}>
+                    <Download className="h-3 w-3 mr-1.5" />
+                    Download Helper
+                  </a>
+                </Button>
+              );
+            })()}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7 text-amber-800/70 hover:bg-amber-100 hover:text-amber-950"
+                  title="Network settings"
+                >
+                  <Settings2 className="h-3.5 w-3.5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-64 p-3 text-xs">
+                <p className="font-semibold text-foreground mb-1">Network Settings</p>
+                <p className="text-[11px] text-muted-foreground mb-2">
+                  If the print helper is running on another device or Tailscale, enter its IP
+                  address:
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    defaultValue={printAgent.host}
+                    placeholder="e.g. 192.168.1.50"
+                    className="h-7 flex-1 rounded border border-input bg-background px-2 font-mono text-xs focus:outline-hidden focus:ring-1 focus:ring-primary"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        printAgent.updateHost((e.target as HTMLInputElement).value);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      if (e.target.value !== printAgent.host) {
+                        printAgent.updateHost(e.target.value);
+                      }
+                    }}
+                  />
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={(e) => {
+                      const input = (e.currentTarget.previousElementSibling as HTMLInputElement)
+                        ?.value;
+                      if (input) printAgent.updateHost(input);
+                    }}
+                  >
+                    Save
+                  </Button>
+                </div>
+                <div className="mt-2.5 pt-2 border-t border-border/60">
+                  <a
+                    href={`http://${printAgent.host || "127.0.0.1"}:18890`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center text-[11px] text-amber-900 font-medium hover:underline gap-1"
+                  >
+                    Open Print Helper Control Panel →
+                  </a>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Update notification when running print agent is older than v2.4 */}
+      {directPrintJob &&
+      printAgent.isRunning &&
+      printAgent.version &&
+      !printAgent.version.includes("2.4") ? (
+        <div className="print-agent-alert mx-auto mb-3.5 flex max-w-[8.5in] flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-blue-200/90 bg-blue-50/95 px-4 py-2.5 shadow-xs text-xs text-blue-950 backdrop-blur-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-200/80 text-blue-800">
+              <Download className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="font-semibold text-blue-950">
+                Print Helper Update Available (Running v{printAgent.version} → Latest v2.4)
+              </p>
+              <p className="text-[11px] text-blue-800/85">
+                Close your currently running print helper and download the new version to apply the latest text wrapping &amp; layout alignment.
+              </p>
+            </div>
+          </div>
+          <Button
+            asChild
+            size="sm"
+            className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white shadow-2xs shrink-0"
+          >
+            <a
+              href={
+                typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.userAgent)
+                  ? "/Automate DirectPrint-mac.zip"
+                  : "/Automate DirectPrint.exe"
+              }
+              download={
+                typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.userAgent)
+                  ? "Automate DirectPrint-mac.zip"
+                  : "Automate DirectPrint.exe"
+              }
+            >
+              <Download className="h-3 w-3 mr-1.5" />
+              Download v2.4 Helper
+            </a>
+          </Button>
+        </div>
+      ) : null}
+
       <div className="print-actions mx-auto mb-4 flex max-w-[8.5in] items-center justify-between gap-3">
         <Button asChild variant="ghost">
           <Link to={backTo as never} params={backParams as never} search={backSearch as never}>
             <ArrowLeft className="h-4 w-4" /> {backLabel}
           </Link>
         </Button>
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button variant="outline" onClick={downloadPdf} disabled={pdfAction !== null}>
-            <Download className="h-4 w-4" />{" "}
-            {pdfAction === "download" ? "Preparing..." : "Download PDF"}
-          </Button>
-          {downloadExcel ? (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {directPrintJob ? (
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant={printAgent.isRunning ? "default" : "secondary"}
+                disabled={pdfAction !== null}
+                onClick={async () => {
+                  if (!printAgent.isRunning) {
+                    toast.error(
+                      "Direct Print Agent is offline. Please launch the print helper on your computer.",
+                      {
+                        duration: 5000,
+                      },
+                    );
+                    return;
+                  }
+                  if (printAgent.supported === false) {
+                    toast.error(
+                      `Direct Print is not supported on ${printAgent.platform || "this OS"}.`,
+                    );
+                    return;
+                  }
+                  setPdfAction("direct");
+                  try {
+                    await printAgent.sendToPrinter({
+                      identifier: directPrintJob.identifier,
+                      jobData: directPrintJob.jobData,
+                      calibration: calibrationDocument ? calibration : undefined,
+                    });
+                    toast.success(
+                      printAgent.platform === "darwin"
+                        ? `Print job sent to macOS CUPS spooler (${printAgent.defaultPrinter || "Default"})!`
+                        : "Print job sent directly to printer spooler!",
+                    );
+                  } catch (err: unknown) {
+                    toast.error(err instanceof Error ? err.message : "Could not print via agent.");
+                  } finally {
+                    setPdfAction(null);
+                  }
+                }}
+                className="gap-1.5"
+              >
+                <Zap className="h-4 w-4" />
+                {pdfAction === "direct"
+                  ? "Sending..."
+                  : printAgent.isRunning && printAgent.supported !== false
+                    ? "Direct Print (Ready)"
+                    : printAgent.isRunning && printAgent.supported === false
+                      ? `Direct Print (Unsupported: ${printAgent.platform})`
+                      : "Direct Print"}
+                <span
+                  className={`ml-1 inline-block h-2 w-2 rounded-full ${
+                    printAgent.isRunning && printAgent.supported !== false
+                      ? "bg-emerald-400 ring-2 ring-emerald-300"
+                      : printAgent.isRunning && printAgent.supported === false
+                        ? "bg-red-400"
+                        : "bg-amber-400"
+                  }`}
+                  title={
+                    printAgent.isRunning
+                      ? `Agent connected at ${printAgent.host} (${printAgent.spoolerEngine || printAgent.platform || "Ready"})`
+                      : "Agent offline"
+                  }
+                />
+              </Button>
+            </div>
+          ) : null}
+          {!hideDownloadPdf ? (
+            <Button variant="outline" onClick={downloadPdf} disabled={pdfAction !== null}>
+              <Download className="h-4 w-4" />{" "}
+              {pdfAction === "download" ? "Preparing..." : "Download PDF"}
+            </Button>
+          ) : null}
+          {!hideDownloadExcel && downloadExcel ? (
             <Button variant="outline" onClick={downloadExcel}>
               Download Excel
             </Button>
           ) : null}
-          <Button onClick={handlePrint} disabled={pdfAction !== null}>
-            <Printer className="h-4 w-4" />
-            {pdfAction === "print" ? "Preparing..." : downloadExcel ? "Print in Excel" : "Print"}
-          </Button>
         </div>
       </div>
-      {calibrationDocument ? (
-        <div className="calibration-controls mx-auto mb-4 max-w-[12in]">
-          <div className="lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)]">
-            <PrintCalibrationPanel
-              documentType={calibrationDocument}
-              value={calibration}
-              loading={calibrationLoading}
-              saving={calibrationSaving}
-              saved={calibrationSaved}
-              onDraftChange={(next, valid) => {
-                editVersion.current += 1;
-                setDraftValid(valid);
-                if (valid) {
-                  setCalibration(next);
-                  setCalibrationSaved(false);
-                }
-              }}
-              onSave={() => {
-                if (!draftValid) return;
-                if (!isPersisted(calibrationDocument)) {
-                  savePrintCalibration(printCalibrationKey(calibrationDocument), calibration);
-                  setCalibrationSaved(true);
-                  return;
-                }
-                setCalibrationSaving(true);
-                savePrintCalibrationForUser(calibrationDocument, calibration)
-                  .then((saved) => {
-                    setCalibration(saved);
-                    setCalibrationSaved(true);
-                    localStorage.removeItem(legacyCalibrationKey(calibrationDocument));
-                    toast.success("Print setup saved.");
-                  })
-                  .catch((error) => {
-                    console.error(error);
-                    toast.error("Print setup was not saved. Your changes are still here.");
-                  })
-                  .finally(() => setCalibrationSaving(false));
-              }}
-              onReset={() => {
-                if (!window.confirm("Reset this print setup to its original alignment?")) return;
-                editVersion.current += 1;
-                setCalibration(DEFAULT_PRINT_CALIBRATION);
-                setCalibrationSaved(true);
-                localStorage.removeItem(legacyCalibrationKey(calibrationDocument));
-                if (isPersisted(calibrationDocument))
-                  void resetPrintCalibration(calibrationDocument).catch(() =>
-                    toast.error("The saved setup could not be reset."),
-                  );
-                else localStorage.removeItem(printCalibrationKey(calibrationDocument));
-              }}
-              onTestPrint={handlePrint}
-            />
-          </div>
-        </div>
-      ) : null}
+
       <div
-        className="print-calibration-frame"
+        className="print-calibration-frame mx-auto max-w-[8.5in] flex justify-center"
         style={
           {
             "--print-calibration-x": calibration.page.xMm,

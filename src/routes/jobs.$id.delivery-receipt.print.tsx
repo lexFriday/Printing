@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
+import { ArrowDown, FileText, Printer } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { PrintShell } from "@/components/print/PrintShell";
 import { useAuth } from "@/hooks/useAuth";
@@ -10,9 +11,12 @@ import { computeInclusiveVat } from "@/lib/calc";
 import { fmtDate } from "@/lib/format";
 import { drawPreprintedText, fitPreprintedFontSize } from "@/lib/preprintedPdf";
 import { formatPrintMoney, formatPrintQty } from "@/lib/printFormat";
-import { DEFAULT_PRINT_CALIBRATION, resolveFieldOffset, type PrintCalibration } from "@/lib/printCalibration";
+import {
+  DEFAULT_PRINT_CALIBRATION,
+  resolveFieldOffset,
+  type PrintCalibration,
+} from "@/lib/printCalibration";
 import { COMPANY_PROFILE } from "@/lib/brand";
-import { downloadFilledTemplate } from "@/lib/templateWorkbook";
 
 export const Route = createFileRoute("/jobs/$id/delivery-receipt/print")({
   head: () => ({ meta: [{ title: `Print delivery receipt - ${COMPANY_PROFILE.name}` }] }),
@@ -110,7 +114,7 @@ function DeliveryReceiptPrintPage() {
       if (error) throw error;
       return data;
     },
-    });
+  });
 
   if (loading || job.isLoading) {
     return (
@@ -175,23 +179,6 @@ function DeliveryReceiptPrintPage() {
     totalAmount,
   } satisfies DeliveryReceiptFormProps;
 
-  const excelLines =
-    job.data.tax_type === "vatable"
-      ? lines.map((line) => ({
-          ...line,
-          line_total: computeInclusiveVat(line.line_total).grossTotal,
-        }))
-      : lines;
-  // The DR SSOT workbook contains one worksheet only; VAT/non-VAT is rendered
-  // into the same calibrated form rather than selecting a legacy extra tab.
-  const excelSheetIndex = 0;
-  const excelLineCapacity = job.data.tax_type === "vatable" ? 9 : 15;
-  const excelCells = buildDeliveryReceiptCells(
-    { ...printProps, lines: excelLines },
-    job.data.tax_type === "vatable",
-  );
-  const extraExcelRows = Math.max(0, excelLines.length - excelLineCapacity);
-
   return (
     <PrintShell
       backTo="/jobs/$id"
@@ -203,33 +190,303 @@ function DeliveryReceiptPrintPage() {
       pageCssSize="5.5in 8.5in"
       printWithGeneratedPdf
       buildGeneratedPdf={(calibration) => buildDeliveryReceiptPdf({ ...printProps, calibration })}
-      downloadExcel={() =>
-        downloadFilledTemplate(
-          "delivery-receipt",
-          excelSheetIndex,
-          excelCells,
-          `${printProps.jobNumber}-DR.xlsx`,
-          {
-            onlySelectedSheet: true,
-            ...(extraExcelRows > 0
-              ? {
-                  insertRows: {
-                    beforeRow: excelLineCapacity === 9 ? 28 : 34,
-                    count: extraExcelRows,
-                    copyStyleFromRow: excelLineCapacity === 9 ? 27 : 33,
-                    printAreaStartRow: excelLineCapacity === 9 ? 3 : 1,
-                    printAreaEndRow: excelLineCapacity === 9 ? 34 : 34,
-                  },
-                }
-              : {}),
-          },
-        )
-      }
+      directPrintJob={{
+        identifier: id,
+        label: job.data.job_number,
+        jobData: { ...job.data, customer: printCustomer, quotation, lines: displayLines },
+      }}
+      hideDownloadPdf={true}
+      hideDownloadExcel={true}
     >
-      <h1 className="sr-only">Delivery Receipt{priced ? " - Priced" : ""}</h1>
-      {job.data.tax_type !== "vatable" ? <p className="sr-only">Non-VAT</p> : null}
-      <DeliveryReceiptForm {...printProps} />
+      <div className="mx-auto w-full max-w-[8.5in] space-y-5 print:hidden">
+        <DeliveryReceiptDetailsCard printProps={printProps} />
+        <DeliveryReceiptInsertionGuide printProps={printProps} />
+      </div>
+
+      <div className="hidden print:block">
+        <h1 className="sr-only">Delivery Receipt{priced ? " - Priced" : ""}</h1>
+        {job.data.tax_type !== "vatable" ? <p className="sr-only">Non-VAT</p> : null}
+        <DeliveryReceiptForm {...printProps} />
+      </div>
     </PrintShell>
+  );
+}
+
+function DeliveryReceiptDetailsCard({
+  printProps,
+}: {
+  printProps: DeliveryReceiptFormProps;
+}) {
+  return (
+    <div className="rounded-xl border bg-white p-5 shadow-xs space-y-4">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
+        <div className="flex items-center gap-2">
+          <FileText className="h-4 w-4 text-primary" />
+          <span className="font-semibold text-sm text-slate-900">Delivery Receipt Details</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-xs font-semibold px-2.5 py-1 rounded-md bg-slate-100 border text-slate-800">
+            {printProps.drNumber ? `DR #${printProps.drNumber}` : "DR # (Not Set)"}
+          </span>
+          <span className="font-mono text-xs text-muted-foreground px-2 py-1 rounded-md bg-slate-50 border">
+            Job #{printProps.jobNumber}
+          </span>
+        </div>
+      </div>
+
+      {/* Delivered To & Receipt Info */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-lg bg-slate-50/70 border p-3.5 text-xs">
+        <div className="space-y-1">
+          <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block">
+            Delivered To
+          </span>
+          <div className="font-bold text-slate-900 text-sm">
+            {printProps.customer?.customer_name || "Customer"}
+          </div>
+          {printProps.customer?.tin_number ? (
+            <div className="text-[11px] text-muted-foreground font-mono">
+              TIN: {printProps.customer.tin_number}
+            </div>
+          ) : null}
+          {printProps.customer?.address ? (
+            <div className="text-[11px] text-muted-foreground leading-snug">
+              {printProps.customer.address}
+            </div>
+          ) : null}
+          {printProps.customer?.contact_person ? (
+            <div className="text-[11px] text-slate-600 pt-0.5">
+              Contact: {printProps.customer.contact_person}
+              {printProps.customer?.contact_number ? ` (${printProps.customer.contact_number})` : ""}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="space-y-1 sm:text-right">
+          <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block">
+            Receipt Details
+          </span>
+          <div className="text-xs text-slate-800">
+            Date: <span className="font-semibold text-slate-900">{fmtDate(printProps.receiptDate)}</span>
+          </div>
+          {printProps.clientPoNumber ? (
+            <div className="text-[11px] text-muted-foreground">
+              Client PO #: <span className="font-semibold font-mono text-slate-800">{printProps.clientPoNumber}</span>
+            </div>
+          ) : null}
+          {printProps.quoteNumber ? (
+            <div className="text-[11px] text-muted-foreground">
+              Quote #: <span className="font-semibold font-mono text-slate-800">{printProps.quoteNumber}</span>
+            </div>
+          ) : null}
+          {printProps.terms ? (
+            <div className="text-[11px] text-muted-foreground">
+              Terms: <span className="font-medium text-slate-800">{printProps.terms}</span>
+            </div>
+          ) : null}
+          {printProps.projectName ? (
+            <div className="text-[11px] text-slate-600 truncate max-w-xs sm:ml-auto" title={printProps.projectName}>
+              Project: <span className="font-medium text-slate-800">{printProps.projectName}</span>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Line Items Table */}
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block">
+            Line Items ({printProps.lines.length})
+          </span>
+          <span className="text-[11px] text-muted-foreground">
+            {printProps.priced ? "Priced Delivery Receipt" : "Standard Delivery Receipt"}
+          </span>
+        </div>
+        <div className="rounded-lg border bg-slate-50/50 overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-100 text-[11px] uppercase font-semibold text-slate-600 border-b">
+              <tr>
+                <th className="py-2 px-3 w-16 text-center">Qty</th>
+                <th className="py-2 px-3">Description</th>
+                {printProps.priced ? (
+                  <>
+                    <th className="py-2 px-3 text-right w-28">Unit Price</th>
+                    <th className="py-2 px-3 text-right w-32">Total</th>
+                  </>
+                ) : null}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200/70 font-mono">
+              {printProps.lines.map((line, idx) => (
+                <tr key={line.id || idx} className="hover:bg-slate-100/50">
+                  <td className="py-2 px-3 text-center font-bold text-slate-900 tabular-nums">
+                    {formatPrintQty(line.quantity)}
+                  </td>
+                  <td className="py-2 px-3 font-sans text-slate-800">
+                    {line.description}
+                  </td>
+                  {printProps.priced ? (
+                    <>
+                      <td className="py-2 px-3 text-right text-slate-600 tabular-nums whitespace-nowrap">
+                        ₱{formatPrintMoney(line.unit_price)}
+                      </td>
+                      <td className="py-2 px-3 text-right font-semibold text-slate-900 tabular-nums whitespace-nowrap">
+                        ₱{formatPrintMoney(line.line_total)}
+                      </td>
+                    </>
+                  ) : null}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Financial Summary */}
+      {printProps.priced ? (
+        <div className="pt-3 border-t flex flex-col items-end gap-1.5 text-xs font-mono">
+          <div className="flex justify-between w-64 text-slate-600">
+            <span>Subtotal:</span>
+            <span className="tabular-nums">₱{formatPrintMoney(printProps.lineSubtotal)}</span>
+          </div>
+          {printProps.vatAmount > 0 ? (
+            <div className="flex justify-between w-64 text-slate-600">
+              <span>VAT (12%):</span>
+              <span className="tabular-nums">₱{formatPrintMoney(printProps.vatAmount)}</span>
+            </div>
+          ) : null}
+          <div className="flex justify-between w-64 text-sm font-bold text-slate-900 pt-1.5 border-t">
+            <span>Total:</span>
+            <span className="text-primary font-bold tabular-nums">₱{formatPrintMoney(printProps.totalAmount)}</span>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function DeliveryReceiptInsertionGuide({ printProps }: { printProps?: DeliveryReceiptFormProps }) {
+  return (
+    <div className="rounded-xl border bg-white p-5 shadow-xs space-y-4">
+      <div className="flex items-center justify-between border-b pb-3">
+        <div className="flex items-center gap-2">
+          <Printer className="h-4 w-4 text-emerald-600" />
+          <span className="font-semibold text-sm text-slate-900">Printer Insertion Guide</span>
+        </div>
+        <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+          5.5&quot; &times; 8.5&quot; Portrait Feed
+        </span>
+      </div>
+
+      {/* Grid with Diagram on Left, Step Instructions on Right */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-center">
+        {/* Visual Delivery Receipt & Printer Feed Slot Representation */}
+        <div className="flex flex-col items-center justify-center rounded-lg border border-slate-200 bg-slate-50/70 p-4">
+          {/* Delivery Receipt Visual Representation */}
+          <div className="w-[190px] h-[230px] rounded-sm border-2 border-dashed border-emerald-500 bg-white p-2 shadow-sm flex flex-col justify-between text-[9px] relative overflow-hidden">
+            {/* Top / Trailing Edge */}
+            <div className="border-b border-slate-200 pb-1 text-center text-[7.5px] font-semibold text-slate-500 bg-slate-50 -mx-2 -mt-2 pt-1">
+              Trailing Edge (Signatures &amp; Received By)
+            </div>
+
+            {/* Form Body Illustration */}
+            <div className="space-y-1.5 py-1 text-slate-600 font-mono text-[8px] bg-slate-50/50 p-1.5 rounded border border-slate-100 flex-1 flex flex-col justify-between my-1">
+              <div>
+                <div className="flex justify-between text-slate-500 text-[7px] border-b pb-0.5">
+                  <span className="font-bold truncate max-w-[100px]">{printProps?.customer?.customer_name || "CUSTOMER"}</span>
+                  <span>{printProps?.drNumber ? `DR #${printProps.drNumber}` : "DR #"}</span>
+                </div>
+                <div className="pt-1 text-[7.5px] text-slate-700 font-sans font-medium line-clamp-2">
+                  {printProps?.lines?.[0]?.description || "DELIVERY ITEMS & PACKAGES"}
+                </div>
+              </div>
+              <div className="border-t pt-1 flex justify-between items-center text-[7px] text-slate-500">
+                <span>ITEMS: {printProps?.lines?.length || 1}</span>
+                <span className="font-bold text-slate-700">{printProps?.priced && printProps?.totalAmount ? `₱${formatPrintMoney(printProps.totalAmount)}` : "OFFICIAL DR"}</span>
+              </div>
+            </div>
+
+            {/* Font Orientation indicator */}
+            <div className="text-center text-[7.5px] font-bold text-emerald-700 bg-emerald-50 py-0.5 border-y border-emerald-100 -mx-2">
+              Font Orientation: Upright (Reads Top to Bottom)
+            </div>
+
+            {/* Bottom / Leading Edge Badge (Top of Paper Enters First) */}
+            <div className="bg-emerald-600 text-white font-bold text-[8.5px] py-1 px-1 rounded-xs text-center tracking-tight leading-tight -mx-2 -mb-2">
+              ▼ TOP OF PAPER (Enters First) ▼
+              <div className="text-[7px] font-sans font-semibold pt-0.5 opacity-95">
+                DELIVERY RECEIPT HEADER
+              </div>
+            </div>
+          </div>
+
+          {/* Directional Feed Arrow pointing DOWN into slot */}
+          <div className="flex items-center gap-1.5 py-2 text-emerald-700 font-bold text-[11px]">
+            <ArrowDown className="h-3.5 w-3.5 animate-bounce" />
+            <span>Insert Downwards Into Feeder Slot</span>
+            <ArrowDown className="h-3.5 w-3.5 animate-bounce" />
+          </div>
+
+          {/* Printer Feed Slot at the BOTTOM */}
+          <div className="w-full max-w-[260px] flex items-center justify-between px-3 py-1.5 rounded-b-md bg-slate-800 text-white text-[10px] font-mono font-medium shadow-sm border-t-2 border-emerald-400">
+            <span className="text-slate-400 font-bold">◄ Left Guide</span>
+            <span className="text-emerald-300 font-bold">5.5&quot; Guide Feeder Slot</span>
+            <span className="text-slate-400 font-bold">Right Guide ►</span>
+          </div>
+        </div>
+
+        {/* Step-by-Step Instructions */}
+        <div className="space-y-3 text-xs text-slate-700">
+          <div className="flex items-start gap-3">
+            <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+              1
+            </div>
+            <div>
+              <p className="font-semibold text-slate-900 text-xs">Set 5.5&quot; Guides on Feeder Slot Below</p>
+              <p className="text-[11px] text-slate-600 leading-snug">
+                Snug the feeder guide rails to 5.5&quot; width to hold the delivery receipt straight.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3">
+            <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+              2
+            </div>
+            <div>
+              <p className="font-semibold text-slate-900 text-xs">Top of Paper First (Insert Downward)</p>
+              <p className="text-[11px] text-slate-600 leading-snug">
+                Insert the top edge (where &quot;DELIVERY RECEIPT&quot; is printed) downward into the feed slot first.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3">
+            <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+              3
+            </div>
+            <div>
+              <p className="font-semibold text-slate-900 text-xs">Face Up (Font Reads Upright)</p>
+              <p className="text-[11px] text-slate-600 leading-snug">
+                Insert paper with the printed delivery receipt lines facing toward you.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3">
+            <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+              4
+            </div>
+            <div>
+              <p className="font-semibold text-slate-900 text-xs">Slide Downward Until Seated</p>
+              <p className="text-[11px] text-slate-600 leading-snug">
+                Gently push the top edge down into the 5.5&quot; feeder slot at the bottom until engaged.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -250,38 +507,6 @@ type DeliveryReceiptFormProps = {
   totalAmount: number;
 };
 
-function buildDeliveryReceiptCells(
-  props: DeliveryReceiptFormProps,
-  isVatable: boolean,
-): Record<string, string | number | Date> {
-  const startRow = 19;
-  const cells: Record<string, string | number | Date> = {};
-  const date = props.receiptDate instanceof Date ? props.receiptDate : new Date(props.receiptDate);
-  // DR SSOT layout: customer/date on row 9, project title on row 10.
-  cells.B9 = props.customer?.customer_name ?? "";
-  cells.F9 = date;
-  cells.C15 = props.projectName;
-  cells.B11 = props.customer?.tin_number ?? "";
-  cells.B12 = props.customer?.address ?? "";
-  cells.F11 = props.quoteNumber ?? props.drNumber ?? "";
-
-  const rowsAvailable = 9;
-  for (let index = 0; index < Math.max(rowsAvailable, props.lines.length); index += 1) {
-    const row = startRow + index;
-    const line = props.lines[index];
-    cells[`B${row}`] = line?.quantity ?? "";
-    cells[`C${row}`] = line ? [line.unit_of_measure, line.description].filter(Boolean).join(" ") : "";
-    cells[`D${row}`] = props.priced ? line?.unit_price ?? "" : "";
-    cells[`F${row}`] = props.priced ? line?.line_total ?? "" : "";
-  }
-
-  const subtotalRow = 28 + Math.max(0, props.lines.length - rowsAvailable);
-  cells[`F${subtotalRow}`] = props.priced ? props.lineSubtotal : "";
-  cells[`F${subtotalRow + 1}`] = props.priced ? props.vatAmount : "";
-  cells[`F${subtotalRow + 3}`] = props.priced ? props.totalAmount : "";
-  return cells;
-}
-
 async function buildDeliveryReceiptPdf({
   customer,
   receiptDate,
@@ -300,118 +525,173 @@ async function buildDeliveryReceiptPdf({
   const { default: jsPDF } = await import("jspdf");
   const pdf = new jsPDF("p", "pt", DELIVERY_RECEIPT_PDF_SIZE_PT);
   const pageWidth = DELIVERY_RECEIPT_PDF_SIZE_PT[0];
-  const draw = (args: Omit<Parameters<typeof drawPreprintedText>[1], "pageWidth" | "unit">, field?: string) =>
-    drawPreprintedText(pdf, { ...args, offset: field ? resolveFieldOffset(calibration ?? DEFAULT_PRINT_CALIBRATION, field) : (calibration ?? DEFAULT_PRINT_CALIBRATION).page, pageWidth, unit: "in" });
+  const draw = (
+    args: Omit<Parameters<typeof drawPreprintedText>[1], "pageWidth" | "unit">,
+    field?: string,
+  ) =>
+    drawPreprintedText(pdf, {
+      ...args,
+      offset: field
+        ? resolveFieldOffset(calibration ?? DEFAULT_PRINT_CALIBRATION, field)
+        : (calibration ?? DEFAULT_PRINT_CALIBRATION).page,
+      pageWidth,
+      unit: "in",
+    });
 
-  draw({
-    text: terms,
-    top: drTopValue(DR_TERMS_TOP_IN + DR_HEADER_SHIFT_IN + DR_TERMS_DELTA_IN),
-    left: DR_TERMS_LEFT_IN + DR_TERMS_RIGHT_DELTA_IN - (DR_TERMS_WIDTH_IN - 1.1),
-    width: DR_TERMS_WIDTH_IN,
-    align: "right",
-    size: 8,
-  }, "terms");
-  draw({
-    text: fmtDate(receiptDate),
-    top: drTopValue(DR_DATE_TOP_IN + DR_HEADER_SHIFT_IN),
-    left: DR_DATE_LEFT_IN,
-    width: 1.1,
-    align: "right",
-  }, "date");
-  draw({
-    text: customer?.customer_name,
-    top: drTopValue(DR_CUSTOMER_TOP_IN + DR_HEADER_SHIFT_IN + DR_CUSTOMER_DELTA_IN),
-    left: DR_CUSTOMER_LEFT_IN,
-    width: 2.27,
-  }, "customerName");
-  draw({
-    text: customer?.tin_number,
-    top: drTopValue(DR_TIN_TOP_IN + DR_HEADER_SHIFT_IN + DR_TIN_DELTA_IN),
-    left: DR_TIN_ADDRESS_LEFT_IN,
-    width: 2.65,
-  }, "tin");
-  draw({
-    text: customer?.address,
-    top: drTopValue(DR_ADDRESS_TOP_IN + DR_HEADER_SHIFT_IN + DR_ADDRESS_DELTA_IN),
-    left: DR_TIN_ADDRESS_LEFT_IN,
-    width: 2.65,
-    size: 8,
-  }, "address");
-  draw({
-    text: quoteNumber || clientPoNumber,
-    top: drTopValue(DR_PO_TOP_IN + DR_HEADER_SHIFT_IN + DR_PO_DELTA_IN),
-    left: 3.52 + DR_PO_RIGHT_DELTA_IN,
-    width: 1.1,
-    align: "right",
-  }, "poNumber");
+  draw(
+    {
+      text: terms,
+      top: drTopValue(DR_TERMS_TOP_IN + DR_HEADER_SHIFT_IN + DR_TERMS_DELTA_IN),
+      left: DR_TERMS_LEFT_IN + DR_TERMS_RIGHT_DELTA_IN - (DR_TERMS_WIDTH_IN - 1.1),
+      width: DR_TERMS_WIDTH_IN,
+      align: "right",
+      size: 8,
+    },
+    "terms",
+  );
+  draw(
+    {
+      text: fmtDate(receiptDate),
+      top: drTopValue(DR_DATE_TOP_IN + DR_HEADER_SHIFT_IN),
+      left: DR_DATE_LEFT_IN,
+      width: 1.1,
+      align: "right",
+    },
+    "date",
+  );
+  draw(
+    {
+      text: customer?.customer_name,
+      top: drTopValue(DR_CUSTOMER_TOP_IN + DR_HEADER_SHIFT_IN + DR_CUSTOMER_DELTA_IN),
+      left: DR_CUSTOMER_LEFT_IN,
+      width: 2.27,
+    },
+    "customerName",
+  );
+  draw(
+    {
+      text: customer?.tin_number,
+      top: drTopValue(DR_TIN_TOP_IN + DR_HEADER_SHIFT_IN + DR_TIN_DELTA_IN),
+      left: DR_TIN_ADDRESS_LEFT_IN,
+      width: 2.65,
+    },
+    "tin",
+  );
+  draw(
+    {
+      text: customer?.address,
+      top: drTopValue(DR_ADDRESS_TOP_IN + DR_HEADER_SHIFT_IN + DR_ADDRESS_DELTA_IN),
+      left: DR_TIN_ADDRESS_LEFT_IN,
+      width: 2.65,
+      size: 8,
+    },
+    "address",
+  );
+  draw(
+    {
+      text: quoteNumber || clientPoNumber,
+      top: drTopValue(DR_PO_TOP_IN + DR_HEADER_SHIFT_IN + DR_PO_DELTA_IN),
+      left: 3.52 + DR_PO_RIGHT_DELTA_IN,
+      width: 1.1,
+      align: "right",
+    },
+    "poNumber",
+  );
 
   lines.forEach((line, index) => {
     const top = drLineTopValue(3.52 + index * 0.48);
-    draw({ text: formatPrintQty(line.quantity), top, left: 0.43, width: 0.38, align: "center" }, "lineQuantity");
-    draw({
-      text: (line.unit_of_measure ?? "PCS").toUpperCase(),
-      top,
-      left: 0.93,
-      width: 0.48,
-      align: "center",
-    }, "lineUnit");
-    draw({
-      text: line.description,
-      top,
-      left: 1.55,
-      width: 2.45,
-      size: 8,
-      minSize: 6,
-      fitToWidth: true,
-    }, "lineDescription");
+    draw(
+      { text: formatPrintQty(line.quantity), top, left: 0.43, width: 0.38, align: "center" },
+      "lineQuantity",
+    );
+    draw(
+      {
+        text: (line.unit_of_measure ?? "PCS").toUpperCase(),
+        top,
+        left: 0.93,
+        width: 0.48,
+        align: "center",
+      },
+      "lineUnit",
+    );
+    draw(
+      {
+        text: line.description,
+        top,
+        left: 1.55,
+        width: 2.45,
+        size: 8,
+        minSize: 6,
+        fitToWidth: true,
+      },
+      "lineDescription",
+    );
     if (priced) {
-      draw({
-        text: formatPrintMoney(line.line_total),
-        top,
-        left: DR_AMOUNT_LEFT_IN,
-        width: 0.82,
-        align: "right",
-      }, "lineAmount");
-      draw({
-        text: formatPrintMoney(line.unit_price),
-        top,
-        left: 3.45,
-        width: 0.62,
-        align: "right",
-      }, "lineUnitPrice");
+      draw(
+        {
+          text: formatPrintMoney(line.line_total),
+          top,
+          left: DR_AMOUNT_LEFT_IN,
+          width: 0.82,
+          align: "right",
+        },
+        "lineAmount",
+      );
+      draw(
+        {
+          text: formatPrintMoney(line.unit_price),
+          top,
+          left: 3.45,
+          width: 0.62,
+          align: "right",
+        },
+        "lineUnitPrice",
+      );
     }
   });
 
   if (priced) {
-    draw({
-      text: "SUBTOTAL",
-      top: drLineTopValue(6.58),
-      left: 3.08,
-      width: 1.1,
-      align: "right",
-      size: 8,
-    }, "subtotal");
-    draw({
-      text: formatPrintMoney(lineSubtotal),
-      top: drLineTopValue(6.58),
-      left: DR_AMOUNT_LEFT_IN,
-      width: 0.82,
-      align: "right",
-    }, "subtotal");
-    draw({
-      text: formatPrintMoney(vatAmount),
-      top: drLineTopValue(6.82),
-      left: DR_AMOUNT_LEFT_IN,
-      width: 0.82,
-      align: "right",
-    }, "vat");
-    draw({
-      text: formatPrintMoney(totalAmount),
-      top: drLineTopValue(7.06),
-      left: DR_AMOUNT_LEFT_IN,
-      width: 0.82,
-      align: "right",
-    }, "total");
+    draw(
+      {
+        text: "SUBTOTAL",
+        top: drLineTopValue(6.58),
+        left: 3.08,
+        width: 1.1,
+        align: "right",
+        size: 8,
+      },
+      "subtotal",
+    );
+    draw(
+      {
+        text: formatPrintMoney(lineSubtotal),
+        top: drLineTopValue(6.58),
+        left: DR_AMOUNT_LEFT_IN,
+        width: 0.82,
+        align: "right",
+      },
+      "subtotal",
+    );
+    draw(
+      {
+        text: formatPrintMoney(vatAmount),
+        top: drLineTopValue(6.82),
+        left: DR_AMOUNT_LEFT_IN,
+        width: 0.82,
+        align: "right",
+      },
+      "vat",
+    );
+    draw(
+      {
+        text: formatPrintMoney(totalAmount),
+        top: drLineTopValue(7.06),
+        left: DR_AMOUNT_LEFT_IN,
+        width: 0.82,
+        align: "right",
+      },
+      "total",
+    );
   }
 
   return pdf;

@@ -1,0 +1,10 @@
+node_modules
+.output
+.git
+.DS_Store
+dist
+tests
+scripts
+docs
+*.log
+.env.local

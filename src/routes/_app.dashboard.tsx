@@ -22,7 +22,16 @@ import {
 } from "@/components/system";
 import { computeQuoteDisplayTotal, daysOutstanding, receivableStatus } from "@/lib/calc";
 import { fmtDate, peso } from "@/lib/format";
-import { AlertCircle, ClipboardList, FileText, Plus, Receipt } from "lucide-react";
+import { AlertCircle, ClipboardList, Download, FileText, Plus, Printer, RefreshCw, Receipt } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { usePrintAgent } from "@/hooks/usePrintAgent";
 import { useAuth } from "@/hooks/useAuth";
 import { canSalesWork, canViewFullReports, canViewMoneyWork, canViewStatusOnly } from "@/lib/roles";
 
@@ -285,13 +294,16 @@ function Dashboard() {
             Open the first item that needs action, or start a new quotation.
           </p>
         </div>
-        {canCreateQuote ? (
-          <Button asChild className="w-full sm:w-auto">
-            <Link to="/quotes/new" search={{ customerId: undefined }}>
-              <Plus className="h-4 w-4" /> New Quote
-            </Link>
-          </Button>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          <PrintAgentDialog />
+          {canCreateQuote ? (
+            <Button asChild className="w-full sm:w-auto">
+              <Link to="/quotes/new" search={{ customerId: undefined }}>
+                <Plus className="h-4 w-4" /> New Quote
+              </Link>
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <section aria-labelledby="status-summary-title" className="space-y-3">
@@ -745,3 +757,129 @@ function clickableRowProps(label: string, open: () => void) {
     },
   };
 }
+
+function PrintAgentDialog() {
+  const { isRunning, checking, checkStatus, host, updateHost, platform, defaultPrinter } = usePrintAgent();
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="w-full sm:w-auto">
+          <Printer className="h-4 w-4 mr-2" />
+          <span>DR Print Helper</span>
+          <span
+            className={`ml-2 inline-block h-2 w-2 rounded-full ${
+              isRunning ? "bg-emerald-500" : isRunning === false ? "bg-amber-500" : "bg-slate-300"
+            }`}
+            title={isRunning ? `Print agent connected (${host})` : "Agent not running"}
+          />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Printer className="h-5 w-5 text-primary" />
+            DR Direct Print Helper
+          </DialogTitle>
+          <DialogDescription>
+            Directly print Delivery Receipts on your pre-printed paper with automatic alignment.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2 text-sm">
+          <div
+            className={`flex items-center justify-between rounded-lg border p-3 ${
+              isRunning
+                ? "border-emerald-200 bg-emerald-50/70 text-emerald-950"
+                : "border-amber-200 bg-amber-50/70 text-amber-950"
+            }`}
+          >
+            <div>
+              <div className="font-medium">
+                Status: {isRunning ? "Active & Connected" : "Not Detected"}
+              </div>
+              <div className="text-xs opacity-80">
+                {isRunning
+                  ? `Connected (${platform === "darwin" ? "macOS CUPS" : platform || "Active"}${defaultPrinter ? `: ${defaultPrinter}` : ""}) on ${host}:18890`
+                  : `Could not reach ${host}:18890`}
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void checkStatus()}
+              disabled={checking}
+              className="h-8 gap-1"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${checking ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-2 rounded-lg border bg-muted/30 p-2.5 text-xs">
+            <span className="font-medium text-foreground shrink-0">Agent PC IP:</span>
+            <input
+              type="text"
+              defaultValue={host}
+              placeholder="127.0.0.1 or 192.168.1.X"
+              className="h-7 flex-1 rounded border border-input bg-background px-2 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  updateHost((e.target as HTMLInputElement).value);
+                }
+              }}
+              onBlur={(e) => {
+                if (e.target.value !== host) {
+                  updateHost(e.target.value);
+                }
+              }}
+            />
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-7 text-xs"
+              onClick={(e) => {
+                const input = (e.currentTarget.previousElementSibling as HTMLInputElement)?.value;
+                if (input) updateHost(input);
+              }}
+            >
+              Set IP
+            </Button>
+          </div>
+
+          <div className="space-y-2 text-muted-foreground text-xs">
+            <p className="font-medium text-foreground">How to setup:</p>
+            <div className="space-y-1">
+              <strong className="text-foreground">Windows PC:</strong>
+              <ol className="list-decimal space-y-0.5 pl-4">
+                <li>Download and double-click <strong>Automate DirectPrint.exe</strong>.</li>
+                <li>Keep the console window open in the background.</li>
+              </ol>
+            </div>
+            <div className="space-y-1 pt-1">
+              <strong className="text-foreground">macOS:</strong>
+              <p className="pl-1">
+                Run <code className="rounded bg-muted px-1 py-0.5 font-mono">npm run agent</code> in terminal. It connects directly to your Mac CUPS printer spooler.
+              </p>
+            </div>
+          </div>
+
+          <div className="pt-2 flex flex-col gap-2">
+            <Button asChild className="w-full gap-2">
+              <a href="/Automate DirectPrint.exe" download="Automate DirectPrint.exe">
+                <Download className="h-4 w-4" />
+                Download Print Agent (.exe)
+              </a>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="w-full text-xs">
+              <a href="/Automate DirectPrint.zip" download="Automate DirectPrint.zip">
+                Download as .ZIP (for restrictive firewalls)
+              </a>
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+

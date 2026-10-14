@@ -35,6 +35,9 @@ export function drawPreprintedText(
     size = 10,
     minSize,
     fitToWidth = false,
+    wrap = false,
+    maxLines,
+    lineHeightFactor = 1.15,
     offset,
   }: {
     text: string | number | null | undefined;
@@ -48,6 +51,9 @@ export function drawPreprintedText(
     size?: number;
     minSize?: number;
     fitToWidth?: boolean;
+    wrap?: boolean;
+    maxLines?: number;
+    lineHeightFactor?: number;
     offset?: CalibrationOffset;
   },
 ) {
@@ -56,6 +62,31 @@ export function drawPreprintedText(
 
   const fieldWidth = toPt(width, unit);
   pdf.setFont("helvetica", "bold");
+  pdf.setTextColor(0, 0, 0);
+
+  if (wrap) {
+    pdf.setFontSize(size);
+    const rawUpper = raw.toUpperCase();
+    const splitLines = (pdf.splitTextToSize(rawUpper, fieldWidth) as string[]) || [];
+    const linesToDraw = maxLines ? splitLines.slice(0, maxLines) : splitLines;
+    const x = textX({
+      left: left === undefined ? undefined : left + (offset?.xMm ?? 0) / (unit === "in" ? 25.4 : 10),
+      right: right === undefined ? undefined : right - (offset?.xMm ?? 0) / (unit === "in" ? 25.4 : 10),
+      width,
+      pageWidth,
+      unit,
+      align,
+    });
+    const startY = toPt(top + (offset?.yMm ?? 0) / (unit === "in" ? 25.4 : 10), unit) + size * 0.75;
+    const lineStepPt = size * lineHeightFactor;
+
+    linesToDraw.forEach((lineText, idx) => {
+      const lineStr = trimToWidth(pdf, lineText, fieldWidth);
+      pdf.text(lineStr, x, startY + idx * lineStepPt, { align });
+    });
+    return;
+  }
+
   const fittedSize = fitToWidth
     ? fitPreprintedFontSize(
         raw.toUpperCase(),
@@ -69,7 +100,6 @@ export function drawPreprintedText(
       )
     : size;
   pdf.setFontSize(fittedSize);
-  pdf.setTextColor(0, 0, 0);
 
   const value = trimToWidth(pdf, raw.toUpperCase(), fieldWidth);
   const x = textX({ left: left === undefined ? undefined : left + (offset?.xMm ?? 0) / (unit === "in" ? 25.4 : 10), right: right === undefined ? undefined : right - (offset?.xMm ?? 0) / (unit === "in" ? 25.4 : 10), width, pageWidth, unit, align });

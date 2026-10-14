@@ -75,7 +75,11 @@ export async function downloadFilledTemplate(
 }
 
 function restorePrintSetup(bytes: ArrayBuffer, template: "sales-invoice" | "delivery-receipt") {
+  const files = unzipSync(new Uint8Array(bytes));
   const path = "xl/worksheets/sheet1.xml";
+  if (!files[path]) {
+    return new Uint8Array(bytes);
+  }
   let xml = new TextDecoder().decode(files[path]);
   if (template === "sales-invoice") {
     // SI SSOT: Letter landscape, custom margins in inches, and fit all rows
@@ -107,7 +111,6 @@ function restorePrintSetup(bytes: ArrayBuffer, template: "sales-invoice" | "deli
     return zipSync(files);
   }
 
-  const files = unzipSync(new Uint8Array(bytes));
   xml = xml.replace(
     /<sheetPr><pageSetUpPr[^>]*\/><\/sheetPr>/g,
     '<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>',
