@@ -400,11 +400,7 @@ export function PrintShell({
                       jobData: directPrintJob.jobData,
                       calibration: calibrationDocument ? calibration : undefined,
                     });
-                    toast.success(
-                      printAgent.platform === "darwin"
-                        ? `Print job sent to macOS CUPS spooler (${printAgent.defaultPrinter || "Default"})!`
-                        : "Print job sent directly to printer spooler!",
-                    );
+                    toast.success("Print job sent directly to printer spooler!");
                   } catch (err: unknown) {
                     toast.error(err instanceof Error ? err.message : "Could not print via agent.");
                   } finally {

@@ -766,7 +766,7 @@ function PrintAgentDialog() {
       <DialogTrigger asChild>
         <Button variant="outline" className="w-full sm:w-auto">
           <Printer className="h-4 w-4 mr-2" />
-          <span>DR Print Helper</span>
+          <span>Print Helper</span>
           <span
             className={`ml-2 inline-block h-2 w-2 rounded-full ${
               isRunning ? "bg-emerald-500" : isRunning === false ? "bg-amber-500" : "bg-slate-300"
@@ -779,10 +779,10 @@ function PrintAgentDialog() {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Printer className="h-5 w-5 text-primary" />
-            DR Direct Print Helper
+            Print Helper
           </DialogTitle>
           <DialogDescription>
-            Directly print Delivery Receipts on your pre-printed paper with automatic alignment.
+            Directly print documents on your pre-printed paper with automatic alignment.
           </DialogDescription>
         </DialogHeader>
 
@@ -800,7 +800,7 @@ function PrintAgentDialog() {
               </div>
               <div className="text-xs opacity-80">
                 {isRunning
-                  ? `Connected (${platform === "darwin" ? "macOS CUPS" : platform || "Active"}${defaultPrinter ? `: ${defaultPrinter}` : ""}) on ${host}:18890`
+                  ? `Connected (${platform || "Active"}${defaultPrinter ? `: ${defaultPrinter}` : ""}) on ${host}:18890`
                   : `Could not reach ${host}:18890`}
               </div>
             </div>
@@ -848,20 +848,11 @@ function PrintAgentDialog() {
           </div>
 
           <div className="space-y-2 text-muted-foreground text-xs">
-            <p className="font-medium text-foreground">How to setup:</p>
-            <div className="space-y-1">
-              <strong className="text-foreground">Windows PC:</strong>
-              <ol className="list-decimal space-y-0.5 pl-4">
-                <li>Download and double-click <strong>Automate DirectPrint.exe</strong>.</li>
-                <li>Keep the console window open in the background.</li>
-              </ol>
-            </div>
-            <div className="space-y-1 pt-1">
-              <strong className="text-foreground">macOS:</strong>
-              <p className="pl-1">
-                Run <code className="rounded bg-muted px-1 py-0.5 font-mono">npm run agent</code> in terminal. It connects directly to your Mac CUPS printer spooler.
-              </p>
-            </div>
+            <p className="font-medium text-foreground">How to setup (Windows):</p>
+            <ol className="list-decimal space-y-0.5 pl-4">
+              <li>Download and double-click <strong>Automate DirectPrint.exe</strong>.</li>
+              <li>Keep the console window open in the background.</li>
+            </ol>
           </div>
 
           <div className="pt-2 flex flex-col gap-2">
