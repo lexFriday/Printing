@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { ArrowDown, FileText, Printer } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { PrintShell } from "@/components/print/PrintShell";
+import { PrintShell, usePrintCalibrationContext } from "@/components/print/PrintShell";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { computeInclusiveVat } from "@/lib/calc";
@@ -27,6 +27,16 @@ export const Route = createFileRoute("/jobs/$id/delivery-receipt/print")({
       search.prices === true ||
       search.prices === "true",
   }),
+  errorComponent: ({ error }) => (
+    <PrintShell backTo="/jobs" backLabel="Back to jobs">
+      <Alert variant="destructive">
+        <AlertTitle>Unable to load delivery receipt</AlertTitle>
+        <AlertDescription>
+          {error instanceof Error ? error.message : "Something went wrong while loading this delivery receipt."}
+        </AlertDescription>
+      </Alert>
+    </PrintShell>
+  ),
   component: DeliveryReceiptPrintPage,
 });
 
@@ -68,11 +78,11 @@ const DR_AMOUNT_LEFT_IN = 4.18 + 0.5 / 2.54;
 const DR_HEADER_SHIFT_IN = -1 / 2.54;
 const DR_CUSTOMER_DELTA_IN = 0.3 / 2.54;
 const DR_TERMS_DELTA_IN = 0.18 / 2.54;
-const DR_TERMS_RIGHT_DELTA_IN = 0.7 / 2.54;
+const DR_TERMS_RIGHT_DELTA_IN = 0.05 / 2.54;
 const DR_TIN_DELTA_IN = 0.38 / 2.54;
-const DR_ADDRESS_DELTA_IN = 0.6 / 2.54;
+const DR_ADDRESS_DELTA_IN = 0.5 / 2.54;
 const DR_PO_DELTA_IN = -0.108 / 2.54;
-const DR_PO_RIGHT_DELTA_IN = 1 - 0.3 / 2.54;
+const DR_PO_RIGHT_DELTA_IN = 1 - 0.8 / 2.54;
 const DR_NUMBER_TOP_CALIBRATED_IN = DR_NUMBER_TOP_IN + 0.2;
 
 function formatDeliveryReceiptTerms(terms: string | null) {
@@ -193,7 +203,7 @@ function DeliveryReceiptPrintPage() {
       directPrintJob={{
         identifier: id,
         label: job.data.job_number,
-        jobData: { ...job.data, customer: printCustomer, quotation, lines: displayLines },
+        jobData: { ...job.data, customer: printCustomer, quotation, lines: displayLines, priced },
       }}
       hideDownloadPdf={true}
       hideDownloadExcel={true}
@@ -366,6 +376,9 @@ function DeliveryReceiptDetailsCard({
 }
 
 function DeliveryReceiptInsertionGuide({ printProps }: { printProps?: DeliveryReceiptFormProps }) {
+  const { printerModel } = usePrintCalibrationContext();
+  const isL121 = printerModel === "epson-l121";
+
   return (
     <div className="rounded-xl border bg-white p-5 shadow-xs space-y-4">
       <div className="flex items-center justify-between border-b pb-3">
@@ -374,7 +387,7 @@ function DeliveryReceiptInsertionGuide({ printProps }: { printProps?: DeliveryRe
           <span className="font-semibold text-sm text-slate-900">Printer Insertion Guide</span>
         </div>
         <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
-          5.5&quot; &times; 8.5&quot; Portrait Feed
+          {isL121 ? "Epson L121 Right-Load (5.5\" × 8.5\")" : "5.5\" × 8.5\" Portrait Feed"}
         </span>
       </div>
 
@@ -429,9 +442,19 @@ function DeliveryReceiptInsertionGuide({ printProps }: { printProps?: DeliveryRe
 
           {/* Printer Feed Slot at the BOTTOM */}
           <div className="w-full max-w-[260px] flex items-center justify-between px-3 py-1.5 rounded-b-md bg-slate-800 text-white text-[10px] font-mono font-medium shadow-sm border-t-2 border-emerald-400">
-            <span className="text-slate-400 font-bold">◄ Left Guide</span>
-            <span className="text-emerald-300 font-bold">5.5&quot; Guide Feeder Slot</span>
-            <span className="text-slate-400 font-bold">Right Guide ►</span>
+            {isL121 ? (
+              <>
+                <span className="text-slate-400 font-bold">◄ Slide Left Guide</span>
+                <span className="text-blue-300 font-bold">5.5&quot; Slot</span>
+                <span className="text-amber-400 font-bold">Fixed Right Guide ▮</span>
+              </>
+            ) : (
+              <>
+                <span className="text-slate-400 font-bold">◄ Left Guide</span>
+                <span className="text-emerald-300 font-bold">5.5&quot; Guide Feeder Slot</span>
+                <span className="text-slate-400 font-bold">Right Guide ►</span>
+              </>
+            )}
           </div>
         </div>
 
@@ -442,9 +465,13 @@ function DeliveryReceiptInsertionGuide({ printProps }: { printProps?: DeliveryRe
               1
             </div>
             <div>
-              <p className="font-semibold text-slate-900 text-xs">Set 5.5&quot; Guides on Feeder Slot Below</p>
+              <p className="font-semibold text-slate-900 text-xs">
+                {isL121 ? "Align Against Fixed Right Guide" : "Set 5.5\" Guides on Feeder Slot Below"}
+              </p>
               <p className="text-[11px] text-slate-600 leading-snug">
-                Snug the feeder guide rails to 5.5&quot; width to hold the delivery receipt straight.
+                {isL121
+                  ? "Load receipt flush against the fixed right guide, then slide the left guide snugly to 5.5\" width."
+                  : "Snug the feeder guide rails to 5.5\" width to hold the delivery receipt straight in center."}
               </p>
             </div>
           </div>

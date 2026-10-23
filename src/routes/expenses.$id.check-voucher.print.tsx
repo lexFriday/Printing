@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { PrintShell } from "@/components/print/PrintShell";
+import { PrintShell, usePrintCalibrationContext } from "@/components/print/PrintShell";
 import { fmtDate } from "@/lib/format";
 import { drawPreprintedText } from "@/lib/preprintedPdf";
 import { formatPrintMoney } from "@/lib/printFormat";
@@ -56,6 +56,16 @@ export const Route = createFileRoute("/expenses/$id/check-voucher/print")({
     jobId: typeof search.jobId === "string" ? search.jobId : undefined,
     tab: typeof search.tab === "string" ? search.tab : "disbursements",
   }),
+  errorComponent: ({ error }) => (
+    <PrintShell backTo="/reports" backLabel="Back to reports">
+      <Alert variant="destructive">
+        <AlertTitle>Unable to load voucher</AlertTitle>
+        <AlertDescription>
+          {error instanceof Error ? error.message : "Something went wrong while loading this voucher."}
+        </AlertDescription>
+      </Alert>
+    </PrintShell>
+  ),
   component: CheckVoucherPrintPage,
 });
 
@@ -311,6 +321,9 @@ function CheckVoucherDetailsCard({
 }
 
 function CheckVoucherInsertionGuide({ printProps }: { printProps?: CheckVoucherPrintProps }) {
+  const { printerModel } = usePrintCalibrationContext();
+  const isL121 = printerModel === "epson-l121";
+
   return (
     <div className="rounded-xl border bg-white p-5 shadow-xs space-y-4">
       <div className="flex items-center justify-between border-b pb-3">
@@ -319,126 +332,235 @@ function CheckVoucherInsertionGuide({ printProps }: { printProps?: CheckVoucherP
           <span className="font-semibold text-sm text-slate-900">Printer Insertion Guide</span>
         </div>
         <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
-          3&quot; Guide Feeder (Facing Right)
+          {isL121 ? "Epson L120 / L121 Top-Load (A5 Landscape, 210mm)" : "3\" Guide Feeder (Facing Right)"}
         </span>
       </div>
 
-      {/* Grid with Diagram on Left, Step Instructions on Right */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-center">
-        {/* Visual Check Voucher & Printer Feed Slot Representation */}
-        <div className="flex flex-col items-center justify-center rounded-lg border border-slate-200 bg-slate-50/70 p-4">
-          {/* Voucher Visual Representation */}
-          <div className="w-[190px] h-[240px] rounded-sm border-2 border-dashed border-emerald-500 bg-white p-2 shadow-sm flex flex-col justify-between text-[9px] relative overflow-hidden">
-            {/* Top / Trailing Edge */}
-            <div className="border-b border-slate-200 pb-1 text-center text-[7.5px] font-semibold text-slate-500 bg-slate-50 -mx-2 -mt-2 pt-1">
-              Trailing Edge (Continuous Form Sheet)
-            </div>
+      {isL121 ? (
+        /* Epson L120 / L121 Top-Load (A5 Landscape 210mm Edge Enters First) */
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-center">
+          {/* Visual Check Voucher & Printer Feed Slot Representation */}
+          <div className="flex flex-col items-center justify-center rounded-lg border border-slate-200 bg-slate-50/70 p-4">
+            {/* Voucher Visual Representation - Landscape A5 */}
+            <div className="w-[280px] h-[190px] rounded-sm border-2 border-dashed border-emerald-500 bg-white p-2 shadow-sm flex flex-col justify-between text-[9px] relative overflow-hidden">
+              {/* Top / Leading Edge (Enters First) */}
+              <div className="bg-emerald-600 text-white font-bold text-[8.5px] py-1 px-1 rounded-xs text-center tracking-tight leading-tight -mx-2 -mt-2 mb-1">
+                ▼ TOP / LEADING EDGE (Enters First) ▼
+                <div className="text-[7px] font-sans font-semibold pt-0.5 opacity-95">
+                  Voucher Header &amp; Date Side
+                </div>
+              </div>
 
-            {/* Header indicating Left and Right */}
-            <div className="flex justify-between w-full text-[7.5px] font-bold text-slate-500 font-mono px-0.5 pt-0.5">
-              <span>◀ ACC NO. / TOP (LEFT)</span>
-              <span>BDO / BOTTOM (RIGHT) ▶</span>
-            </div>
-
-            {/* Rotated Check Voucher Content */}
-            <div className="flex-1 flex items-center justify-center py-1">
-              <div className="-rotate-90 origin-center w-[165px] space-y-1 text-[8px] font-mono text-slate-700 select-none border border-emerald-200 rounded bg-[#f4fcf7] p-2 shadow-2xs">
+              {/* Upright Check Voucher Content */}
+              <div className="flex-1 flex flex-col justify-between py-1 px-2 bg-[#f4fcf7] border border-emerald-200 rounded text-[8px] font-mono select-none space-y-1">
                 <div className="flex justify-between items-center text-[7px] text-slate-500 border-b border-emerald-100 pb-0.5">
-                  <span className="font-bold text-slate-700">CV #{printProps?.checkNo || printProps?.documentNo || "VOUCHER"}</span>
+                  <span className="font-bold text-slate-700">
+                    CV #{printProps?.checkNo || printProps?.documentNo || "VOUCHER"}
+                  </span>
                   <span className="font-semibold text-slate-800">{printProps?.date || "2026-06-21"}</span>
                 </div>
                 <div className="font-sans font-bold text-[8.5px] text-slate-900 truncate">
                   PAY: {printProps?.payee || "PAYEE NAME"}
                 </div>
                 <div className="text-[7.5px] text-slate-600 truncate border-b border-emerald-100 pb-0.5">
-                  FOR: {printProps?.particulars?.slice(0, 24) || "PAYMENT DETAILS"}
+                  FOR: {printProps?.particulars?.slice(0, 36) || "PAYMENT DETAILS"}
                 </div>
                 <div className="flex justify-between items-center text-[7.5px] font-bold text-emerald-800 pt-0.5">
                   <span>CHECK VOUCHER</span>
                   <span>₱{printProps?.amount || "0.00"}</span>
                 </div>
               </div>
+
+              {/* Bottom / Trailing Edge */}
+              <div className="border-t border-slate-200 pt-0.5 mt-1 text-center text-[7px] font-semibold text-slate-500 bg-slate-50 -mx-2 -mb-2 pb-0.5">
+                Trailing Edge (Prepared By &amp; Signatures Block)
+              </div>
             </div>
 
-            <div className="text-center text-[7px] font-medium text-emerald-700 bg-emerald-50 py-0.5 border-y border-emerald-100 -mx-2">
-              Facing Printer: Acc # (Left) | BDO (Right)
+            {/* Directional Feed Arrow pointing DOWN into slot */}
+            <div className="flex items-center gap-1.5 py-2 text-emerald-700 font-bold text-[11px]">
+              <ArrowDown className="h-3.5 w-3.5 animate-bounce" />
+              <span>Insert Top Edge Downwards Into Feeder Slot</span>
+              <ArrowDown className="h-3.5 w-3.5 animate-bounce" />
             </div>
 
-            {/* Bottom / Leading Edge (Enters First) */}
-            <div className="bg-emerald-600 text-white font-bold text-[8.5px] py-1 px-1 rounded-xs text-center tracking-tight leading-tight -mx-2 -mb-2">
-              ▼ LEADING EDGE (Enters First) ▼
-              <div className="text-[7px] font-sans font-semibold pt-0.5 opacity-95">
-                Voucher Leading Edge
+            {/* Printer Feed Slot at the BOTTOM */}
+            <div className="w-full max-w-[280px] flex items-center justify-between px-3 py-1.5 rounded-b-md bg-slate-800 text-white text-[10px] font-mono font-medium shadow-sm border-t-2 border-emerald-400">
+              <span className="text-slate-400 font-bold">◄ Left Guide (210mm)</span>
+              <span className="text-blue-300 font-bold">Full A5 Landscape Slot</span>
+              <span className="text-amber-400 font-bold">Fixed Right Guide ▮</span>
+            </div>
+          </div>
+
+          {/* Step-by-Step Instructions */}
+          <div className="space-y-3 text-xs text-slate-700">
+            <div className="flex items-start gap-3">
+              <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                1
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900 text-xs">Full Carriage Width (A5 Landscape)</p>
+                <p className="text-[11px] text-slate-600 leading-snug">
+                  The voucher is 210 mm wide (full A4 carriage width). Load it across the tray flush against the fixed right guide.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                2
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900 text-xs">Top Edge Enters First (Voucher Title &amp; Date)</p>
+                <p className="text-[11px] text-slate-600 leading-snug">
+                  Facing the printer, the TOP edge enters the feeder slot first. Text is upright facing toward you.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                3
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900 text-xs">Face Up</p>
+                <p className="text-[11px] text-slate-600 leading-snug">
+                  Place voucher with pre-printed lines facing toward you.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                4
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900 text-xs">Insert Downward Top Edge First</p>
+                <p className="text-[11px] text-slate-600 leading-snug">
+                  Slide the top edge of the voucher downward into the feeder slot until seated.
+                </p>
               </div>
             </div>
           </div>
+        </div>
+      ) : (
+        /* Standard Center-Feed (Exact existing narrow-edge feed UNTOUCHED) */
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-center">
+          {/* Visual Check Voucher & Printer Feed Slot Representation */}
+          <div className="flex flex-col items-center justify-center rounded-lg border border-slate-200 bg-slate-50/70 p-4">
+            {/* Voucher Visual Representation */}
+            <div className="w-[190px] h-[240px] rounded-sm border-2 border-dashed border-emerald-500 bg-white p-2 shadow-sm flex flex-col justify-between text-[9px] relative overflow-hidden">
+              {/* Top / Trailing Edge */}
+              <div className="border-b border-slate-200 pb-1 text-center text-[7.5px] font-semibold text-slate-500 bg-slate-50 -mx-2 -mt-2 pt-1">
+                Trailing Edge (Continuous Form Sheet)
+              </div>
 
-          {/* Directional Feed Arrow pointing DOWN into slot */}
-          <div className="flex items-center gap-1.5 py-2 text-emerald-700 font-bold text-[11px]">
-            <ArrowDown className="h-3.5 w-3.5 animate-bounce" />
-            <span>Insert Downwards Into Feeder Slot</span>
-            <ArrowDown className="h-3.5 w-3.5 animate-bounce" />
+              {/* Header indicating Left and Right */}
+              <div className="flex justify-between w-full text-[7.5px] font-bold text-slate-500 font-mono px-0.5 pt-0.5">
+                <span>◀ ACC NO. / TOP (LEFT)</span>
+                <span>BDO / BOTTOM (RIGHT) ▶</span>
+              </div>
+
+              {/* Rotated Check Voucher Content */}
+              <div className="flex-1 flex items-center justify-center py-1">
+                <div className="-rotate-90 origin-center w-[165px] space-y-1 text-[8px] font-mono text-slate-700 select-none border border-emerald-200 rounded bg-[#f4fcf7] p-2 shadow-2xs">
+                  <div className="flex justify-between items-center text-[7px] text-slate-500 border-b border-emerald-100 pb-0.5">
+                    <span className="font-bold text-slate-700">CV #{printProps?.checkNo || printProps?.documentNo || "VOUCHER"}</span>
+                    <span className="font-semibold text-slate-800">{printProps?.date || "2026-06-21"}</span>
+                  </div>
+                  <div className="font-sans font-bold text-[8.5px] text-slate-900 truncate">
+                    PAY: {printProps?.payee || "PAYEE NAME"}
+                  </div>
+                  <div className="text-[7.5px] text-slate-600 truncate border-b border-emerald-100 pb-0.5">
+                    FOR: {printProps?.particulars?.slice(0, 24) || "PAYMENT DETAILS"}
+                  </div>
+                  <div className="flex justify-between items-center text-[7.5px] font-bold text-emerald-800 pt-0.5">
+                    <span>CHECK VOUCHER</span>
+                    <span>₱{printProps?.amount || "0.00"}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-center text-[7px] font-medium text-emerald-700 bg-emerald-50 py-0.5 border-y border-emerald-100 -mx-2">
+                Facing Printer: Acc # (Left) | BDO (Right)
+              </div>
+
+              {/* Bottom / Leading Edge (Enters First) */}
+              <div className="bg-emerald-600 text-white font-bold text-[8.5px] py-1 px-1 rounded-xs text-center tracking-tight leading-tight -mx-2 -mb-2">
+                ▼ LEADING EDGE (Enters First) ▼
+                <div className="text-[7px] font-sans font-semibold pt-0.5 opacity-95">
+                  Voucher Leading Edge
+                </div>
+              </div>
+            </div>
+
+            {/* Directional Feed Arrow pointing DOWN into slot */}
+            <div className="flex items-center gap-1.5 py-2 text-emerald-700 font-bold text-[11px]">
+              <ArrowDown className="h-3.5 w-3.5 animate-bounce" />
+              <span>Insert Downwards Into Feeder Slot</span>
+              <ArrowDown className="h-3.5 w-3.5 animate-bounce" />
+            </div>
+
+            {/* Printer Feed Slot at the BOTTOM */}
+            <div className="w-full max-w-[260px] flex items-center justify-between px-3 py-1.5 rounded-b-md bg-slate-800 text-white text-[10px] font-mono font-medium shadow-sm border-t-2 border-emerald-400">
+              <span className="text-slate-400 font-bold">◄ Left Guide</span>
+              <span className="text-emerald-300 font-bold">3&quot; Guide Feeder Slot</span>
+              <span className="text-slate-400 font-bold">Right Guide ►</span>
+            </div>
           </div>
 
-          {/* Printer Feed Slot at the BOTTOM */}
-          <div className="w-full max-w-[260px] flex items-center justify-between px-3 py-1.5 rounded-b-md bg-slate-800 text-white text-[10px] font-mono font-medium shadow-sm border-t-2 border-emerald-400">
-            <span className="text-slate-400 font-bold">◄ Left Guide</span>
-            <span className="text-emerald-300 font-bold">3&quot; Guide Feeder Slot</span>
-            <span className="text-slate-400 font-bold">Right Guide ►</span>
+          {/* Step-by-Step Instructions */}
+          <div className="space-y-3 text-xs text-slate-700">
+            <div className="flex items-start gap-3">
+              <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                1
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900 text-xs">Set 3&quot; Guides on Feeder Slot Below</p>
+                <p className="text-[11px] text-slate-600 leading-snug">
+                  Set the printer feed slot guides to the narrow 3&quot; guide feeder width to keep the voucher straight in center.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                2
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900 text-xs">Account # on Left, BDO on Right (Text Faces Right)</p>
+                <p className="text-[11px] text-slate-600 leading-snug">
+                  Facing the printer, Account # is on the LEFT, BDO is on the RIGHT, and the text faces to the RIGHT (rotated 90° clockwise).
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                3
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900 text-xs">Face Up</p>
+                <p className="text-[11px] text-slate-600 leading-snug">
+                  Place paper with pre-printed voucher lines facing toward you.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                4
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900 text-xs">Insert Downward Leading Edge First</p>
+                <p className="text-[11px] text-slate-600 leading-snug">
+                  Slide the voucher downward into the 3&quot; feeder slot at the bottom until seated.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
-
-        {/* Step-by-Step Instructions */}
-        <div className="space-y-3 text-xs text-slate-700">
-          <div className="flex items-start gap-3">
-            <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-              1
-            </div>
-            <div>
-              <p className="font-semibold text-slate-900 text-xs">Set 3&quot; Guides on Feeder Slot Below</p>
-              <p className="text-[11px] text-slate-600 leading-snug">
-                Set the printer feed slot guides to the narrow 3&quot; guide feeder width to keep the voucher straight.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3">
-            <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-              2
-            </div>
-            <div>
-              <p className="font-semibold text-slate-900 text-xs">Account # on Left, BDO on Right (Text Faces Right)</p>
-              <p className="text-[11px] text-slate-600 leading-snug">
-                Facing the printer, Account # is on the LEFT, BDO is on the RIGHT, and the text faces to the RIGHT (rotated 90° clockwise).
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3">
-            <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-              3
-            </div>
-            <div>
-              <p className="font-semibold text-slate-900 text-xs">Face Up</p>
-              <p className="text-[11px] text-slate-600 leading-snug">
-                Place paper with pre-printed voucher lines facing toward you.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3">
-            <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-              4
-            </div>
-            <div>
-              <p className="font-semibold text-slate-900 text-xs">Insert Downward Leading Edge First</p>
-              <p className="text-[11px] text-slate-600 leading-snug">
-                Slide the voucher downward into the 3&quot; feeder slot at the bottom until seated.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

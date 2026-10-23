@@ -78,12 +78,12 @@ export const LAYOUT_CONFIG = {
     leftIn: Number(process.env.OFFSET_LEFT || 0.0),
   },
   header: {
-    deliveredTo: { topIn: 2.39, leftIn: 1.5, maxWidthIn: 2.1 }, // shifted up to align on line
+    deliveredTo: { topIn: 2.42, leftIn: 1.5, maxWidthIn: 2.1 }, // rested on line
     date: { topIn: 2.39, leftIn: 4.25 }, // moved right to clear "Date:" label
-    tin: { topIn: 2.61, leftIn: 0.85, maxWidthIn: 2.5 }, // shifted up to align on line
-    terms: { topIn: 2.61, leftIn: 4.35 }, // moved right to clear "Terms:" label
-    address: { topIn: 2.83, leftIn: 1.15, maxWidthIn: 2.3 }, // shifted up to align on line
-    poNo: { topIn: 2.83, leftIn: 4.45 }, // moved right to clear "P.O. No." label
+    tin: { topIn: 2.61, leftIn: 0.65, maxWidthIn: 2.5 }, // aligned right after "TIN:" label
+    terms: { topIn: 2.61, leftIn: 4.08 }, // shifted left to sit snugly after "Terms:" label
+    address: { topIn: 2.79, leftIn: 1.15, maxWidthIn: 2.3 }, // shifted up to align on line
+    poNo: { topIn: 2.83, leftIn: 4.25 }, // moved left to align with Date and clear gap
     businessStyle: { topIn: 3.05, leftIn: 1.55, maxWidthIn: 3.4 }, // shifted up to align on line
   },
   items: {
@@ -113,7 +113,7 @@ export const SERVICE_INVOICE_LAYOUT_CONFIG = {
     heightIn: 20 / 2.54, // ~7.8740"
   },
   globalOffset: {
-    topIn: Number(process.env.SI_OFFSET_TOP || 0.03), // Shifted down ~1.8mm (+0.07" from -0.04) so all text sits centered inside boxes
+    topIn: Number(process.env.SI_OFFSET_TOP || -0.09), // Shifted up ~1.27mm to center vertically in boxes
     leftIn: Number(process.env.SI_OFFSET_LEFT || -0.05), // Shifted ~1.3mm to the left
   },
   header: {
@@ -132,7 +132,7 @@ export const SERVICE_INVOICE_LAYOUT_CONFIG = {
       description: { leftIn: 0.42, maxWidthIn: 2.70 }, // Bounded strictly within Description column (~6.85 cm)
       qty: { leftIn: 3.55, align: "right" },
       unitPrice: { leftIn: 4.40, align: "right" },
-      amount: { leftIn: 5.30, align: "right" },
+      amount: { leftIn: 5.52, align: "right" },
     },
   },
   totals: {
@@ -140,7 +140,7 @@ export const SERVICE_INVOICE_LAYOUT_CONFIG = {
     rowStepIn: Number(process.env.SI_ROW_STEP_IN || 0.2), // uniform ~5.08mm per row (5 lines per inch)
     columns: {
       summaryLeft: { leftIn: 1.95, align: "right" },
-      summaryRight: { leftIn: 5.30, align: "right" },
+      summaryRight: { leftIn: 5.52, align: "right" },
     },
   },
 };
@@ -175,22 +175,22 @@ export const CHECK_VOUCHER_LAYOUT_CONFIG = {
   fields: {
     date: { topIn: 1.4375, leftIn: 6.25, maxWidthIn: 1.85, fontSize: 10, align: "left" }, // 1 7/16"
     payee: {
-      topIn: 2.0,
+      topIn: 1.85,
       leftIn: 1.78,
       maxWidthIn: 3.95,
       fontSize: 10.5,
       fontStyle: "bold",
       align: "left",
-    }, // 2"
-    particulars: { topIn: 3.175, leftIn: 0.82, maxWidthIn: 5.45, fontSize: 9.5, align: "left" }, // 3 3/16" (aligned with amount)
+    }, // shifted up ~3.8mm to center in bracket
+    particulars: { topIn: 2.95, leftIn: 0.82, maxWidthIn: 5.45, fontSize: 9.5, align: "left" }, // shifted up ~5.7mm
     amount: {
-      topIn: 3.175,
+      topIn: 2.95,
       leftIn: 6.6,
       maxWidthIn: 1.4,
       fontSize: 10,
       fontStyle: "bold",
       align: "left",
-    }, // 3 3/16" (aligned with particulars)
+    }, // shifted up ~5.7mm (aligned with particulars)
     signatures: {
       topIn: 5.75, // 5 3/4"
       preparedBy: { leftIn: 0.92, maxWidthIn: 1.8, fontSize: 9.5, align: "left" },
@@ -224,39 +224,50 @@ export const CHECK_LAYOUT_CONFIG = {
       align: "right",
     },
     date: {
-      topIn: 0.56, // Centered vertically inside the date boxes (between upper tick marks and lower rule)
+      topIn: 0.62, // Centered vertically inside the date boxes (between upper tick marks and lower rule)
       fontSize: 11,
       boxLefts: [
-        5.84, 6.06, // MM boxes (M1, M2)
-        6.38, 6.60, // DD boxes (D1, D2)
-        6.86, 7.05, 7.24, 7.43, // YYYY boxes (Y1, Y2, Y3, Y4)
+        5.69, 5.91, // MM boxes (M1, M2 - kept)
+        6.18, 6.40, // DD boxes (D1, D2 - shifted left)
+        6.66, 6.85, 7.04, 7.23, // YYYY boxes (Y1, Y2, Y3, Y4 - shifted left)
       ],
-      monthLeftIn: 5.84,
-      dayLeftIn: 6.38,
-      yearLeftIn: 6.86,
+      monthLeftIn: 5.69,
+      dayLeftIn: 6.18,
+      yearLeftIn: 6.66,
     },
     payee: {
       topIn: 0.95, // Onto PAY TO THE ORDER OF line
-      leftIn: 1.55,
+      leftIn: 1.30,
       maxWidthIn: 4.5,
       fontSize: 11,
       fontStyle: "bold",
     },
     amount: {
       topIn: 0.95, // Aligned with ₱ baseline
-      leftIn: 5.95,
+      leftIn: 5.75,
       maxWidthIn: 1.7,
       fontSize: 11.5,
       fontStyle: "bold",
     },
     amountWords: {
       topIn: 1.22, // Onto PESOS line
-      leftIn: 1.43,
+      leftIn: 1.20,
       maxWidthIn: 5.5,
       fontSize: 10.5,
       fontStyle: "bold",
     },
   },
+};
+
+// --- 1E. EPSON L121 RIGHT-EDGE FEED OFFSETS (INCHES) ---
+// Epson L121/L120 feeds all paper along the fixed right edge guide of the A4/Letter carriage (8.2677" = 210mm).
+// For top-feed paper against the right guide, Windows/driver aligns page origin (X = 0) with the paper's left edge.
+// Delivery Receipt and Service Invoice require 0.0" offset to prevent artificial right-side shift.
+export const EPSON_L121_TRAY_OFFSETS = {
+  check: 8.2677 - 8.0, // 0.2677" (~6.8mm for top-feed against fixed right guide)
+  deliveryReceipt: Number(process.env.L120_DR_OFFSET_IN || 0.0), // 0.0" (paper edge aligns at origin)
+  serviceInvoice: Number(process.env.L120_SI_OFFSET_IN || 0.0), // 0.0" (paper edge aligns at origin)
+  checkVoucher: 0.0, // Full A4 carriage width (210mm - 210mm = 0")
 };
 
 // Convert numeric amount to Philippine Peso words
@@ -395,7 +406,7 @@ async function fetchJobOrder(identifier) {
 }
 
 // Sample mock data for testing layout without database
-function getMockJobOrder() {
+export function getMockJobOrder() {
   return {
     job_number: "JO-2026-0153",
     dr_number: "17999",
@@ -449,7 +460,7 @@ async function fetchInvoice(identifier) {
 }
 
 // Sample mock Service Invoice data for layout calibration test
-function getMockInvoice() {
+export function getMockInvoice() {
   return {
     documentType: "service-invoice",
     invoice_number: "SI-2026-0001",
@@ -485,7 +496,7 @@ function getMockInvoice() {
 }
 
 // Sample mock Check Voucher data for layout calibration test
-function getMockExpense() {
+export function getMockExpense() {
   return {
     documentType: "check-voucher",
     id: "EXP-2026-MOCK",
@@ -554,16 +565,22 @@ function fmtMoney(num) {
 }
 
 // --- 5. GENERATE OVERLAY PDF ---
-export function generateDeliveryReceiptPdf(data, config = LAYOUT_CONFIG) {
-  // Statement size in points (72 points per inch)
-  const widthPt = config.paper.widthIn * 72;
-  const heightPt = config.paper.heightIn * 72;
+export function generateDeliveryReceiptPdf(data, config = LAYOUT_CONFIG, printerModel = "standard") {
+  const isL121 = printerModel === "epson-l121" || config?.printerModel === "epson-l121";
+  const a4WidthPt = Math.round(8.2677 * 72);
+  const a4HeightPt = Math.round(11.69 * 72);
+  const widthPt = isL121 ? a4WidthPt : config.paper.widthIn * 72;
+  const heightPt = isL121 ? a4HeightPt : config.paper.heightIn * 72;
 
   const doc = new jsPDF({
     unit: "pt",
     format: [widthPt, heightPt],
     orientation: "portrait",
   });
+
+  const xShiftIn = isL121
+    ? (config.trayOffsetLeftIn ?? EPSON_L121_TRAY_OFFSETS.deliveryReceipt ?? 0)
+    : 0;
 
   // Helper to place text by inch coordinates
   const drawText = (
@@ -574,7 +591,7 @@ export function generateDeliveryReceiptPdf(data, config = LAYOUT_CONFIG) {
   ) => {
     if (!text && text !== 0) return;
     const finalTopPt = (topIn + config.globalOffset.topIn) * 72;
-    const finalLeftPt = (leftIn + config.globalOffset.leftIn) * 72;
+    const finalLeftPt = (leftIn + config.globalOffset.leftIn + xShiftIn) * 72;
 
     doc.setFontSize(size);
     doc.setFont("helvetica", fontStyle);
@@ -619,10 +636,10 @@ export function generateDeliveryReceiptPdf(data, config = LAYOUT_CONFIG) {
         size: 8,
       });
     } else {
-      drawText(addrLines[0], config.header.address.topIn - 0.08, config.header.address.leftIn, {
+      drawText(addrLines[0], config.header.address.topIn - 0.03, config.header.address.leftIn, {
         size: 7.2,
       });
-      drawText(addrLines[1], config.header.address.topIn + 0.02, config.header.address.leftIn, {
+      drawText(addrLines[1], config.header.address.topIn + 0.08, config.header.address.leftIn, {
         size: 7.2,
       });
     }
@@ -647,6 +664,10 @@ export function generateDeliveryReceiptPdf(data, config = LAYOUT_CONFIG) {
 
   // Particulars Section:
   // 1. Column Titles ("Top title" as in Excel / Picture 2)
+  const isPriced =
+    data.priced !== false &&
+    String(data.priced).toLowerCase() !== "false" &&
+    data.withPrices !== false;
   const headerTopIn = config.items.headerTopIn || 3.7;
   drawText("QTY", headerTopIn, config.items.columns.qtyAndUnit.leftIn, {
     size: 8,
@@ -656,16 +677,18 @@ export function generateDeliveryReceiptPdf(data, config = LAYOUT_CONFIG) {
     size: 8,
     fontStyle: "bold",
   });
-  drawText("UNITPRICE", headerTopIn, config.items.columns.unitPrice.leftIn, {
-    align: "right",
-    size: 8,
-    fontStyle: "bold",
-  });
-  drawText("TOTAL", headerTopIn, config.items.columns.amount.leftIn, {
-    align: config.items.columns.amount.align || "center",
-    size: 8,
-    fontStyle: "bold",
-  });
+  if (isPriced) {
+    drawText("UNITPRICE", headerTopIn, config.items.columns.unitPrice.leftIn, {
+      align: "right",
+      size: 8,
+      fontStyle: "bold",
+    });
+    drawText("TOTAL", headerTopIn, config.items.columns.amount.leftIn, {
+      align: config.items.columns.amount.align || "center",
+      size: 8,
+      fontStyle: "bold",
+    });
+  }
 
   let currentTopIn = config.items.startTopIn || 3.92;
 
@@ -695,13 +718,13 @@ export function generateDeliveryReceiptPdf(data, config = LAYOUT_CONFIG) {
     const descLines = doc.splitTextToSize(String(line.description || ""), maxDescWidthPt);
 
     drawText(qtyUnit, currentTopIn, config.items.columns.qtyAndUnit.leftIn, { size: 8 });
-    if (unitPrice) {
+    if (isPriced && unitPrice) {
       drawText(unitPrice, currentTopIn, config.items.columns.unitPrice.leftIn, {
         align: "right",
         size: 8,
       });
     }
-    if (lineTotal) {
+    if (isPriced && lineTotal) {
       drawText(lineTotal, currentTopIn, config.items.columns.amount.leftIn, {
         align: config.items.columns.amount.align || "center",
         size: 8.5,
@@ -721,7 +744,7 @@ export function generateDeliveryReceiptPdf(data, config = LAYOUT_CONFIG) {
   });
 
   // Grand Total at bottom of amount column
-  if (grandTotal > 0) {
+  if (isPriced && grandTotal > 0) {
     drawText(fmtMoney(grandTotal), config.items.total.topIn, config.items.total.leftIn, {
       align: config.items.total.align || "center",
       size: 9.5,
@@ -733,15 +756,22 @@ export function generateDeliveryReceiptPdf(data, config = LAYOUT_CONFIG) {
 }
 
 // --- 5B. GENERATE SERVICE INVOICE OVERLAY PDF ---
-export function generateServiceInvoicePdf(data, config = SERVICE_INVOICE_LAYOUT_CONFIG) {
-  const widthPt = config.paper.widthIn * 72;
-  const heightPt = config.paper.heightIn * 72;
+export function generateServiceInvoicePdf(data, config = SERVICE_INVOICE_LAYOUT_CONFIG, printerModel = "standard") {
+  const isL121 = printerModel === "epson-l121" || config?.printerModel === "epson-l121";
+  const a4WidthPt = Math.round(8.2677 * 72);
+  const a4HeightPt = Math.round(11.69 * 72);
+  const widthPt = isL121 ? a4WidthPt : config.paper.widthIn * 72;
+  const heightPt = isL121 ? a4HeightPt : config.paper.heightIn * 72;
 
   const doc = new jsPDF({
     unit: "pt",
     format: [widthPt, heightPt],
     orientation: "portrait",
   });
+
+  const xShiftIn = isL121
+    ? (config.trayOffsetLeftIn ?? EPSON_L121_TRAY_OFFSETS.serviceInvoice ?? 0)
+    : 0;
 
   const drawText = (
     text,
@@ -751,7 +781,7 @@ export function generateServiceInvoicePdf(data, config = SERVICE_INVOICE_LAYOUT_
   ) => {
     if (!text && text !== 0) return;
     const finalTopPt = (topIn + config.globalOffset.topIn) * 72;
-    const finalLeftPt = (leftIn + config.globalOffset.leftIn) * 72;
+    const finalLeftPt = (leftIn + config.globalOffset.leftIn + xShiftIn) * 72;
 
     doc.setFontSize(size);
     doc.setFont("helvetica", fontStyle);
@@ -843,23 +873,31 @@ export function generateServiceInvoicePdf(data, config = SERVICE_INVOICE_LAYOUT_
     const lineTotal =
       line.line_total || line.lineTotal ? fmtMoney(line.line_total || line.lineTotal) : "";
 
-    // Wrap description so it fits cleanly inside the Description column without overlapping Qty/Price/Amount
-    doc.setFontSize(7.5);
+    // Align description cleanly inside the ~5.08mm row box without crossing horizontal divider rules
+    doc.setFontSize(8.5);
     doc.setFont("helvetica", "normal");
-    const descLines = doc.splitTextToSize(desc, maxDescWidthPt);
+    const singleLineWidth = doc.getTextWidth(desc);
 
-    if (descLines.length <= 1) {
+    if (singleLineWidth <= maxDescWidthPt) {
       drawText(desc, rowTopIn, config.items.columns.description.leftIn, { size: 8.5 });
+    } else if (doc.setFontSize(6.5), doc.getTextWidth(desc) <= maxDescWidthPt) {
+      drawText(desc, rowTopIn, config.items.columns.description.leftIn, { size: 6.5 });
     } else {
-      // 2 wrapped lines fit inside the ~5.08mm row box with compact font
-      const line1 = descLines[0];
-      const remaining = descLines.slice(1).join(" ");
-      doc.setFontSize(7.0);
-      const splitRemaining = doc.splitTextToSize(remaining, maxDescWidthPt);
-      const line2 = splitRemaining[0] || remaining;
+      // 2 wrapped lines centered vertically inside the 0.20" row slot
+      // Line 1 (-0.055") and Line 2 (+0.018") stay safely clear of top and bottom rules
+      doc.setFontSize(6.0);
+      const descLines = doc.splitTextToSize(desc, maxDescWidthPt);
+      if (descLines.length <= 1) {
+        drawText(desc, rowTopIn, config.items.columns.description.leftIn, { size: 6.0 });
+      } else {
+        const line1 = descLines[0];
+        const remaining = descLines.slice(1).join(" ");
+        const splitRemaining = doc.splitTextToSize(remaining, maxDescWidthPt);
+        const line2 = splitRemaining[0] || remaining;
 
-      drawText(line1, rowTopIn - 0.045, config.items.columns.description.leftIn, { size: 7.0 });
-      drawText(line2, rowTopIn + 0.038, config.items.columns.description.leftIn, { size: 7.0 });
+        drawText(line1, rowTopIn - 0.055, config.items.columns.description.leftIn, { size: 6.0 });
+        drawText(line2, rowTopIn + 0.018, config.items.columns.description.leftIn, { size: 6.0 });
+      }
     }
 
     if (qty)
@@ -948,15 +986,20 @@ export function generateServiceInvoicePdf(data, config = SERVICE_INVOICE_LAYOUT_
 }
 
 // --- 5C. GENERATE CHECK VOUCHER OVERLAY PDF (A5 PORTRAIT FEED) ---
-export function generateCheckVoucherPdf(data, config = CHECK_VOUCHER_LAYOUT_CONFIG) {
-  const widthPt = config.paper.widthIn * 72;
-  const heightPt = config.paper.heightIn * 72;
+export function generateCheckVoucherPdf(data, config = CHECK_VOUCHER_LAYOUT_CONFIG, printerModel = "standard") {
+  const isL121 = printerModel === "epson-l121" || config?.printerModel === "epson-l121";
+  const a4WidthPt = Math.round(8.2677 * 72);
+  const a4HeightPt = Math.round(11.69 * 72);
+  const widthPt = isL121 ? a4WidthPt : config.paper.widthIn * 72;
+  const heightPt = isL121 ? a4HeightPt : config.paper.heightIn * 72;
 
   const doc = new jsPDF({
     unit: "pt",
     format: [widthPt, heightPt],
     orientation: "portrait",
   });
+
+  const carriageWidthIn = isL121 ? 8.2677 : config.paper.widthIn;
 
   const drawVoucherText = (
     text,
@@ -968,18 +1011,25 @@ export function generateCheckVoucherPdf(data, config = CHECK_VOUCHER_LAYOUT_CONF
     const finalTopIn = topIn + config.globalOffset.topIn;
     const finalLeftIn = leftIn + config.globalOffset.leftIn;
 
-    // Narrow-edge feed with Left edge entering first:
-    // Top of voucher corresponds to right edge of portrait sheet (widthIn)
-    // Left of voucher enters first (yp = 0)
-    const xpPt = (config.paper.widthIn - finalTopIn) * 72;
-    const ypPt = finalLeftIn * 72;
-
     doc.setFontSize(size);
     doc.setFont("helvetica", fontStyle);
     doc.setTextColor(0, 0, 0);
-    // Note: In jsPDF with angle: 270, passing align: "right" causes jsPDF to shift xpPt (the vertical coordinate)
-    // instead of ypPt (the reading axis). Always draw with align: "left" to guarantee exact row alignment.
-    doc.text(String(text), xpPt, ypPt, { align: "left", angle: 270, baseline: "alphabetic" });
+
+    if (isL121) {
+      // Epson L120/L121: Top-Feed (A5 Landscape 210mm wide on A4 carriage, top edge enters first)
+      // Carriage is 210mm wide, voucher is 210mm wide (spans full carriage width, offset = 0)
+      const xpPt = finalLeftIn * 72;
+      const ypPt = finalTopIn * 72;
+      doc.text(String(text), xpPt, ypPt, { align, angle: 0, baseline: "alphabetic" });
+    } else {
+      // Standard Center-Feed: Narrow-edge feed with Left edge entering first (UNTOUCHED)
+      // Top of voucher corresponds to right edge of portrait sheet (widthIn)
+      const xpPt = (carriageWidthIn - finalTopIn) * 72;
+      const ypPt = finalLeftIn * 72;
+      // Note: In jsPDF with angle: 270, passing align: "right" causes jsPDF to shift xpPt (the vertical coordinate)
+      // instead of ypPt (the reading axis). Always draw with align: "left" to guarantee exact row alignment.
+      doc.text(String(text), xpPt, ypPt, { align: "left", angle: 270, baseline: "alphabetic" });
+    }
   };
 
   const f = config.fields;
@@ -1029,9 +1079,12 @@ export function generateCheckVoucherPdf(data, config = CHECK_VOUCHER_LAYOUT_CONF
 }
 
 // --- 5D. GENERATE BANK CHECK OVERLAY PDF (PORTRAIT FEED: 3" W x 8" H) ---
-export function generateCheckPdf(data, config = CHECK_LAYOUT_CONFIG) {
-  const widthPt = config.paper.widthIn * 72;
-  const heightPt = config.paper.heightIn * 72;
+export function generateCheckPdf(data, config = CHECK_LAYOUT_CONFIG, printerModel = "standard") {
+  const isL121 = printerModel === "epson-l121" || config?.printerModel === "epson-l121";
+  const a4WidthPt = Math.round(8.2677 * 72);
+  const a4HeightPt = Math.round(11.69 * 72);
+  const widthPt = isL121 ? a4WidthPt : config.paper.widthIn * 72;
+  const heightPt = isL121 ? a4HeightPt : config.paper.heightIn * 72;
 
   const doc = new jsPDF({
     unit: "pt",
@@ -1040,7 +1093,10 @@ export function generateCheckPdf(data, config = CHECK_LAYOUT_CONFIG) {
   });
 
   const trayOffsetLeftIn =
-    config.trayOffsetLeftIn ?? (config.paper.widthIn - (config.paper.checkWidthIn || 3.0)) / 2;
+    config.trayOffsetLeftIn ??
+    (isL121
+      ? 8.2677 - (config.paper.checkHeightIn || 8.0)
+      : (config.paper.widthIn - (config.paper.checkWidthIn || 3.0)) / 2);
 
   const drawCheckText = (
     text,
@@ -1051,14 +1107,6 @@ export function generateCheckPdf(data, config = CHECK_LAYOUT_CONFIG) {
     if (!text && text !== 0) return;
     const finalTopIn = topIn + config.globalOffset.topIn;
     const finalLeftIn = leftIn + config.globalOffset.leftIn;
-
-    // Narrow-edge feed with Account Number (left edge) entering first:
-    // The 3" check is centered between tray guides at trayOffsetLeftIn (approx 2.635" on A4).
-    // The pre-printed lines (Payee, Date, Amount) are on the right side of the check (checkWidthIn - finalTopIn).
-    // Left edge of check enters first (Y = 0).
-    const checkWidthIn = config.paper.checkWidthIn || 3.0;
-    const xpPt = (trayOffsetLeftIn + checkWidthIn - finalTopIn) * 72;
-    const ypPt = finalLeftIn * 72;
 
     doc.setFont("helvetica", fontStyle);
     doc.setTextColor(0, 0, 0);
@@ -1076,7 +1124,23 @@ export function generateCheckPdf(data, config = CHECK_LAYOUT_CONFIG) {
       doc.setFontSize(currentSize);
     }
 
-    doc.text(String(text), xpPt, ypPt, { align, angle: 270, baseline: "alphabetic" });
+    if (isL121) {
+      // Epson L120/L121: Top-Feed (8" wide check on A4 carriage, top edge enters first)
+      // Carriage is 8.2677" wide, check is 8.0" wide against fixed right guide (offset: 0.2677")
+      const checkTrayOffsetIn = 8.2677 - (config.paper.checkHeightIn || 8.0); // 0.2677" (~6.8mm)
+      const xpPt = (checkTrayOffsetIn + finalLeftIn) * 72;
+      const ypPt = finalTopIn * 72;
+      doc.text(String(text), xpPt, ypPt, { align, angle: 0, baseline: "alphabetic" });
+    } else {
+      // Standard Center-Feed: Narrow-edge feed with Account Number (left edge) entering first (UNTOUCHED)
+      // The 3" check is centered between tray guides at trayOffsetLeftIn (approx 2.635" on A4).
+      // The pre-printed lines (Payee, Date, Amount) are on the right side of the check (checkWidthIn - finalTopIn).
+      // Left edge of check enters first (Y = 0).
+      const checkWidthIn = config.paper.checkWidthIn || 3.0;
+      const xpPt = (trayOffsetLeftIn + checkWidthIn - finalTopIn) * 72;
+      const ypPt = finalLeftIn * 72;
+      doc.text(String(text), xpPt, ypPt, { align, angle: 270, baseline: "alphabetic" });
+    }
   };
 
   const f = config.fields;
@@ -1098,7 +1162,7 @@ export function generateCheckPdf(data, config = CHECK_LAYOUT_CONFIG) {
   const mStr = String(month || "").padStart(2, "0");
   const dStr = String(day || "").padStart(2, "0");
   const yStr = String(year || "").padStart(4, "2026");
-  const boxLefts = f.date.boxLefts || [5.84, 6.06, 6.45, 6.67, 6.86, 7.05, 7.24, 7.43];
+  const boxLefts = f.date.boxLefts || [5.69, 5.91, 6.18, 6.40, 6.66, 6.85, 7.04, 7.23];
   const dateDigits = [mStr[0], mStr[1], dStr[0], dStr[1], yStr[0], yStr[1], yStr[2], yStr[3]];
 
   dateDigits.forEach((digit, idx) => {
@@ -1555,6 +1619,26 @@ function renderGuiHtml() {
       padding: 0.22rem 0.5rem;
       font-size: 0.72rem;
     }
+    .btn-profile {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      color: var(--text-dim);
+      border-radius: 0.35rem;
+      padding: 0.22rem 0.6rem;
+      font-size: 0.72rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-profile:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text);
+    }
+    .btn-profile.active {
+      background: #4f46e5;
+      border-color: #6366f1;
+      color: #fff;
+      font-weight: 600;
+    }
     .btn-danger {
       background: rgba(239, 68, 68, 0.15);
       border: 1px solid rgba(239, 68, 68, 0.3);
@@ -1721,6 +1805,13 @@ function renderGuiHtml() {
           <option value="">Default Printer</option>
         </select>
       </div>
+      <div style="margin-top:0.65rem; padding-top:0.6rem; border-top:1px solid rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:space-between;">
+        <span style="font-size:0.72rem; color:var(--text-dim);">Feeder Profile:</span>
+        <div style="display:flex; gap:0.4rem;">
+          <button type="button" class="btn-profile active" id="btnProfileStandard" onclick="setProfile('standard')">Standard (Center)</button>
+          <button type="button" class="btn-profile" id="btnProfileL121" onclick="setProfile('epson-l121')">Epson L120 / L121 (Right)</button>
+        </div>
+      </div>
     </div>
 
     <div class="stats-grid">
@@ -1804,6 +1895,21 @@ function renderGuiHtml() {
 
   <script>
     let selectedPrinter = '';
+    let selectedProfile = 'standard';
+
+    function setProfile(profile) {
+      selectedProfile = profile;
+      const btnStd = document.getElementById('btnProfileStandard');
+      const btnL121 = document.getElementById('btnProfileL121');
+      if (btnStd) btnStd.classList.toggle('active', profile === 'standard');
+      if (btnL121) btnL121.classList.toggle('active', profile === 'epson-l121');
+    }
+
+    function autoDetectProfile(name) {
+      if (/l121|l120/i.test(name || '')) {
+        setProfile('epson-l121');
+      }
+    }
 
     function showToast(msg, isError) {
       const el = document.getElementById('toast');
@@ -1830,6 +1936,7 @@ function renderGuiHtml() {
         }
         if (data.defaultPrinter && !selectedPrinter) {
           document.getElementById('currentPrinterName').textContent = data.defaultPrinter;
+          autoDetectProfile(data.defaultPrinter);
         }
       } catch {
         document.getElementById('statusText').textContent = 'Connecting...';
@@ -1844,6 +1951,7 @@ function renderGuiHtml() {
         const printers = data.printers || [];
         const def = data.defaultPrinter || printers[0] || 'Default Printer';
         document.getElementById('currentPrinterName').textContent = selectedPrinter || def;
+        autoDetectProfile(selectedPrinter || def);
 
         sel.innerHTML = '<option value="">Default (' + def + ')</option>';
         printers.forEach(p => {
@@ -1885,11 +1993,16 @@ function renderGuiHtml() {
 
     async function triggerTest(type) {
       try {
-        showToast('Sending test print to ' + (selectedPrinter || 'default printer') + '...', false);
+        const profLabel = selectedProfile === 'epson-l121' ? ' (Epson L121 Profile)' : ' (Standard Profile)';
+        showToast('Sending test print to ' + (selectedPrinter || 'default printer') + profLabel + '...', false);
         const res = await fetch('/api/test-print', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type, printer: selectedPrinter || undefined })
+          body: JSON.stringify({
+            type,
+            printer: selectedPrinter || undefined,
+            printerModel: selectedProfile,
+          })
         });
         const data = await res.json();
         if (data.success) {
@@ -1906,6 +2019,7 @@ function renderGuiHtml() {
     document.getElementById('printerSelect').addEventListener('change', (e) => {
       selectedPrinter = e.target.value;
       document.getElementById('currentPrinterName').textContent = selectedPrinter || 'Default Printer';
+      autoDetectProfile(selectedPrinter);
     });
 
     document.getElementById('btnRefreshPrinters').addEventListener('click', () => {
@@ -2188,6 +2302,17 @@ function startPrintDaemon(defaultPrinter) {
   // Prime printer cache in background on daemon start so initial requests never block
   refreshPrintersInBackground();
 
+  if (process.platform === "win32") {
+    try {
+      execSync(
+        `netsh advfirewall firewall add rule name="Automate DirectPrint Helper" dir=in action=allow protocol=TCP localport=${DAEMON_PORT} profile=any`,
+        { stdio: "ignore" },
+      );
+    } catch {
+      // Ignored if non-elevated
+    }
+  }
+
   const server = http.createServer(async (req, res) => {
     const origin = req.headers.origin || "*";
     const reqHeaders =
@@ -2278,17 +2403,24 @@ function startPrintDaemon(defaultPrinter) {
           const payload = JSON.parse(body || "{}");
           const type = payload.type || "dr";
           const printer = payload.printer || defaultPrinter;
+          const printerModel =
+            payload.printerModel ||
+            (/l121|l120/i.test(printer || "") ? "epson-l121" : "standard");
+          const isL121 = printerModel === "epson-l121";
           const outputDir = getOutputDir();
 
           if (type === "dr") {
             const jobData = getMockJobOrder();
             const fileName = `test-dr-${Date.now()}.pdf`;
             const outputPath = path.join(outputDir, fileName);
-            const doc = generateDeliveryReceiptPdf(jobData);
+            const doc = generateDeliveryReceiptPdf(jobData, LAYOUT_CONFIG, printerModel);
             fs.writeFileSync(outputPath, Buffer.from(doc.output("arraybuffer")));
-            printPdf(outputPath, printer, "paper=A5,paperkind=11,noscale,center");
+            const drSettings = isL121
+              ? "paper=A4,paperkind=9,noscale"
+              : "paper=A5,paperkind=11,noscale,center";
+            printPdf(outputPath, printer, drSettings);
             recordJob({
-              documentType: "Delivery Receipt",
+              documentType: `Delivery Receipt (${isL121 ? "Epson L121" : "Center"})`,
               documentNo: jobData.job_number || "TEST-DR",
               printer: printer || "Default",
               status: "Sent to printer",
@@ -2297,7 +2429,7 @@ function startPrintDaemon(defaultPrinter) {
             res.end(
               JSON.stringify({
                 success: true,
-                message: `Delivery Receipt test sent to ${printer || "default printer"}`,
+                message: `Delivery Receipt test (${isL121 ? "Epson L121" : "Standard"}) sent to ${printer || "default printer"}`,
               }),
             );
             return;
@@ -2307,13 +2439,13 @@ function startPrintDaemon(defaultPrinter) {
             const checkData = getMockExpense();
             const fileName = `test-check-${Date.now()}.pdf`;
             const outputPath = path.join(outputDir, fileName);
-            const doc = generateCheckPdf(checkData);
+            const doc = generateCheckPdf(checkData, CHECK_LAYOUT_CONFIG, printerModel);
             fs.writeFileSync(outputPath, Buffer.from(doc.output("arraybuffer")));
             const checkSettings =
               process.env.CHECK_PRINT_SETTINGS || "paper=A4,paperkind=9,noscale";
             printPdf(outputPath, printer, checkSettings);
             recordJob({
-              documentType: "Check",
+              documentType: `Check (${isL121 ? "Epson L121" : "Center"})`,
               documentNo: checkData.checkNo || "TEST-CHK",
               printer: printer || "Default",
               status: "Sent to printer",
@@ -2322,7 +2454,7 @@ function startPrintDaemon(defaultPrinter) {
             res.end(
               JSON.stringify({
                 success: true,
-                message: `Check test sent to ${printer || "default printer"}`,
+                message: `Check test (${isL121 ? "Epson L121" : "Standard"}) sent to ${printer || "default printer"}`,
               }),
             );
             return;
@@ -2332,11 +2464,14 @@ function startPrintDaemon(defaultPrinter) {
             const invoiceData = getMockInvoice();
             const fileName = `test-si-${Date.now()}.pdf`;
             const outputPath = path.join(outputDir, fileName);
-            const doc = generateServiceInvoicePdf(invoiceData);
+            const doc = generateServiceInvoicePdf(invoiceData, SERVICE_INVOICE_LAYOUT_CONFIG, printerModel);
             fs.writeFileSync(outputPath, Buffer.from(doc.output("arraybuffer")));
-            printPdf(outputPath, printer, "paper=A5,paperkind=11,noscale,center");
+            const siSettings = isL121
+              ? "paper=A4,paperkind=9,noscale"
+              : "paper=A5,paperkind=11,noscale,center";
+            printPdf(outputPath, printer, siSettings);
             recordJob({
-              documentType: "Service Invoice",
+              documentType: `Service Invoice (${isL121 ? "Epson L121" : "Center"})`,
               documentNo: invoiceData.invoice_number || "TEST-SI",
               printer: printer || "Default",
               status: "Sent to printer",
@@ -2345,7 +2480,7 @@ function startPrintDaemon(defaultPrinter) {
             res.end(
               JSON.stringify({
                 success: true,
-                message: `Service Invoice test sent to ${printer || "default printer"}`,
+                message: `Service Invoice test (${isL121 ? "Epson L121" : "Standard"}) sent to ${printer || "default printer"}`,
               }),
             );
             return;
@@ -2355,11 +2490,14 @@ function startPrintDaemon(defaultPrinter) {
             const cvData = getMockExpense();
             const fileName = `test-cv-${Date.now()}.pdf`;
             const outputPath = path.join(outputDir, fileName);
-            const doc = generateCheckVoucherPdf(cvData);
+            const doc = generateCheckVoucherPdf(cvData, CHECK_VOUCHER_LAYOUT_CONFIG, printerModel);
             fs.writeFileSync(outputPath, Buffer.from(doc.output("arraybuffer")));
-            printPdf(outputPath, printer, "paper=A5,paperkind=11,noscale,center");
+            const cvSettings = isL121
+              ? "paper=A4,paperkind=9,noscale"
+              : "paper=A5,paperkind=11,noscale,center";
+            printPdf(outputPath, printer, cvSettings);
             recordJob({
-              documentType: "Check Voucher",
+              documentType: `Check Voucher (${isL121 ? "Epson L121" : "Center"})`,
               documentNo: cvData.documentNo || "TEST-CV",
               printer: printer || "Default",
               status: "Sent to printer",
@@ -2368,7 +2506,7 @@ function startPrintDaemon(defaultPrinter) {
             res.end(
               JSON.stringify({
                 success: true,
-                message: `Check Voucher test sent to ${printer || "default printer"}`,
+                message: `Check Voucher test (${isL121 ? "Epson L121" : "Standard"}) sent to ${printer || "default printer"}`,
               }),
             );
             return;
@@ -2390,6 +2528,12 @@ function startPrintDaemon(defaultPrinter) {
       req.on("end", async () => {
         try {
           const payload = JSON.parse(body || "{}");
+          const targetPrinter = payload.printer || defaultPrinter;
+          const printerModel =
+            payload.printerModel ||
+            payload.jobData?.printerModel ||
+            (/l121|l120/i.test(targetPrinter || "") ? "epson-l121" : "standard");
+          const isL121 = printerModel === "epson-l121";
 
           const isServiceInvoice =
             payload.documentType === "service-invoice" ||
@@ -2398,8 +2542,6 @@ function startPrintDaemon(defaultPrinter) {
 
           const isCheck =
             payload.documentType === "check" || payload.jobData?.documentType === "check";
-
-
 
           if (isCheck) {
             let checkData = payload.jobData || payload.checkData;
@@ -2420,10 +2562,9 @@ function startPrintDaemon(defaultPrinter) {
             // Direct Print from web executes with the verified CHECK_LAYOUT_CONFIG baseline, identical to test-check.
             const checkConfig = CHECK_LAYOUT_CONFIG;
 
-            const doc = generateCheckPdf(checkData, checkConfig);
+            const doc = generateCheckPdf(checkData, checkConfig, printerModel);
             fs.writeFileSync(outputPath, Buffer.from(doc.output("arraybuffer")));
 
-            const targetPrinter = payload.printer || defaultPrinter;
             const checkSettings =
               payload.settings ||
               payload.printSettings ||
@@ -2431,7 +2572,7 @@ function startPrintDaemon(defaultPrinter) {
               "paper=A4,paperkind=9,noscale";
             printPdf(outputPath, targetPrinter, checkSettings);
             recordJob({
-              documentType: "Check",
+              documentType: `Check (${isL121 ? "Epson L121" : "Center"})`,
               documentNo: checkData.checkNo || checkData.check_number || "Check",
               printer: targetPrinter || "Default",
               status: "Printed",
@@ -2444,6 +2585,7 @@ function startPrintDaemon(defaultPrinter) {
                 file: fileName,
                 documentType: "check",
                 printer: targetPrinter || "default",
+                printerModel,
               }),
             );
             return;
@@ -2474,13 +2616,20 @@ function startPrintDaemon(defaultPrinter) {
             const doc = generateCheckVoucherPdf(
               cvData,
               payload.config || CHECK_VOUCHER_LAYOUT_CONFIG,
+              printerModel,
             );
             fs.writeFileSync(outputPath, Buffer.from(doc.output("arraybuffer")));
 
-            const targetPrinter = payload.printer || defaultPrinter;
-            printPdf(outputPath, targetPrinter, "paper=A5,paperkind=11,noscale,center");
+            const cvSettings = isL121
+              ? "paper=A4,paperkind=9,noscale"
+              : "paper=A5,paperkind=11,noscale,center";
+            printPdf(
+              outputPath,
+              targetPrinter,
+              payload.settings || payload.printSettings || cvSettings,
+            );
             recordJob({
-              documentType: "Check Voucher",
+              documentType: `Check Voucher (${isL121 ? "Epson L121" : "Center"})`,
               documentNo: cvData.documentNo || cvData.id || "Voucher",
               printer: targetPrinter || "Default",
               status: "Printed",
@@ -2493,10 +2642,24 @@ function startPrintDaemon(defaultPrinter) {
                 file: fileName,
                 documentType: "check-voucher",
                 printer: targetPrinter || "default",
+                printerModel,
               }),
             );
             return;
           }
+
+          const applyCalibration = (baseConfig) => {
+            if (!payload.calibration?.page) return baseConfig;
+            const xIn = (Number(payload.calibration.page.xMm) || 0) / 25.4;
+            const yIn = (Number(payload.calibration.page.yMm) || 0) / 25.4;
+            return {
+              ...baseConfig,
+              globalOffset: {
+                topIn: (baseConfig.globalOffset?.topIn || 0) + yIn,
+                leftIn: (baseConfig.globalOffset?.leftIn || 0) + xIn,
+              },
+            };
+          };
 
           if (isServiceInvoice) {
             const invoiceData =
@@ -2518,14 +2681,21 @@ function startPrintDaemon(defaultPrinter) {
 
             const doc = generateServiceInvoicePdf(
               invoiceData,
-              payload.config || SERVICE_INVOICE_LAYOUT_CONFIG,
+              applyCalibration(payload.config || SERVICE_INVOICE_LAYOUT_CONFIG),
+              printerModel,
             );
             fs.writeFileSync(outputPath, Buffer.from(doc.output("arraybuffer")));
 
-            const targetPrinter = payload.printer || defaultPrinter;
-            printPdf(outputPath, targetPrinter, "paper=A5,paperkind=11,noscale,center");
+            const siSettings = isL121
+              ? "paper=A4,paperkind=9,noscale"
+              : "paper=A5,paperkind=11,noscale,center";
+            printPdf(
+              outputPath,
+              targetPrinter,
+              payload.settings || payload.printSettings || siSettings,
+            );
             recordJob({
-              documentType: "Service Invoice",
+              documentType: `Service Invoice (${isL121 ? "Epson L121" : "Center"})`,
               documentNo: invoiceData.invoice_number || invoiceData.invoiceNumber || "Invoice",
               printer: targetPrinter || "Default",
               status: "Printed",
@@ -2538,6 +2708,7 @@ function startPrintDaemon(defaultPrinter) {
                 file: fileName,
                 documentType: "service-invoice",
                 printer: targetPrinter || "default",
+                printerModel,
               }),
             );
             return;
@@ -2553,17 +2724,33 @@ function startPrintDaemon(defaultPrinter) {
             return;
           }
 
+          if (payload.priced !== undefined && jobData.priced === undefined) {
+            jobData.priced = payload.priced;
+          }
+
           const outputDir = getOutputDir();
           const fileName = `dr-${jobData.dr_number || jobData.job_number || Date.now()}.pdf`;
           const outputPath = path.join(outputDir, fileName);
 
-          const doc = generateDeliveryReceiptPdf(jobData, payload.config || LAYOUT_CONFIG);
+          const doc = generateDeliveryReceiptPdf(
+            jobData,
+            applyCalibration(payload.config || LAYOUT_CONFIG),
+            printerModel,
+          );
           fs.writeFileSync(outputPath, Buffer.from(doc.output("arraybuffer")));
 
-          const targetPrinter = payload.printer || defaultPrinter;
-          printPdf(outputPath, targetPrinter, "paper=A5,paperkind=11,noscale,center");
+          const drSettings = isL121
+            ? "paper=A4,paperkind=9,noscale"
+            : "paper=A5,paperkind=11,noscale,center";
+          printPdf(
+            outputPath,
+            targetPrinter,
+            payload.settings || payload.printSettings || drSettings,
+          );
+          const isPriced =
+            jobData.priced !== false && String(jobData.priced).toLowerCase() !== "false";
           recordJob({
-            documentType: "Delivery Receipt",
+            documentType: `Delivery Receipt (${isL121 ? "Epson L121" : "Center"}${isPriced ? "" : ", Unpriced"})`,
             documentNo: jobData.dr_number || jobData.job_number || "DR",
             printer: targetPrinter || "Default",
             status: "Printed",
@@ -2571,7 +2758,12 @@ function startPrintDaemon(defaultPrinter) {
 
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(
-            JSON.stringify({ success: true, file: fileName, printer: targetPrinter || "default" }),
+            JSON.stringify({
+              success: true,
+              file: fileName,
+              printer: targetPrinter || "default",
+              printerModel,
+            }),
           );
         } catch (err) {
           console.error("Print request failed:", err);
@@ -2658,10 +2850,14 @@ function startPrintDaemon(defaultPrinter) {
     console.log(`  Automate DirectPrint Agent is RUNNING on port ${DAEMON_PORT}`);
     console.log(`  Local URL:      http://127.0.0.1:${DAEMON_PORT}`);
     if (localIps.length > 0) {
-      console.log(`  Network IP:     ${localIps.join(", ")}`);
-      console.log(
-        `  (If using browser on another device, enter "${localIps[0]}" in the print page)`,
-      );
+      console.log(`  ------------------------------------------------------`);
+      console.log(`  >>> PC IP ADDRESS FOR WEB BROWSER: <<<`);
+      localIps.forEach((ip) => {
+        console.log(`      ${ip}`);
+      });
+      console.log(`  Enter this IP into the web app's Print Helper settings`);
+      console.log(`  if you are printing from a Mac, phone, or tablet.`);
+      console.log(`  ------------------------------------------------------`);
     }
     console.log(`  Platform:       ${process.platform === "darwin" ? "macOS" : process.platform}`);
     console.log(`  Spooler Engine: ${spoolerEngine}`);
@@ -2720,7 +2916,7 @@ async function main() {
   }
 
   const identifier = nonFlagArgs[0];
-  const isTest = identifier === "test";
+  const isTest = identifier === "test" || identifier === "test-dr";
   const isTestSi = identifier === "test-si";
   const isTestCv = identifier === "test-cv" || identifier === "test-voucher";
   const isTestCheck = identifier === "test-check";
@@ -2830,6 +3026,11 @@ async function main() {
   } else {
     console.log(`Fetching job order for: ${identifier}...`);
     jobData = await fetchJobOrder(identifier);
+  }
+
+  const withoutPrices = args.includes("--without-prices") || args.includes("--unpriced");
+  if (withoutPrices && jobData) {
+    jobData.priced = false;
   }
 
   const outputDir = getOutputDir();

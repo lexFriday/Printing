@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { KeyboardEvent } from "react";
 import type { ReactNode } from "react";
 import { Card } from "@/components/ui/card";
@@ -22,7 +22,7 @@ import {
 } from "@/components/system";
 import { computeQuoteDisplayTotal, daysOutstanding, receivableStatus } from "@/lib/calc";
 import { fmtDate, peso } from "@/lib/format";
-import { AlertCircle, ClipboardList, Download, FileText, Plus, Printer, RefreshCw, Receipt } from "lucide-react";
+import { AlertCircle, ClipboardList, Download, FileText, Laptop, Monitor, Plus, Printer, RefreshCw, Receipt, Search } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -759,7 +759,25 @@ function clickableRowProps(label: string, open: () => void) {
 }
 
 function PrintAgentDialog() {
-  const { isRunning, checking, checkStatus, host, updateHost, platform, defaultPrinter } = usePrintAgent();
+  const {
+    isRunning,
+    checking,
+    checkStatus,
+    host,
+    updateHost,
+    platform,
+    isWindows,
+    defaultPrinter,
+    scanning,
+    scanProgress,
+    scanNetwork,
+    discoveredAgents,
+  } = usePrintAgent();
+  const [ipInput, setIpInput] = useState(host);
+
+  useEffect(() => {
+    setIpInput(host);
+  }, [host]);
 
   return (
     <Dialog>
@@ -769,9 +787,19 @@ function PrintAgentDialog() {
           <span>Print Helper</span>
           <span
             className={`ml-2 inline-block h-2 w-2 rounded-full ${
-              isRunning ? "bg-emerald-500" : isRunning === false ? "bg-amber-500" : "bg-slate-300"
+              isRunning && isWindows
+                ? "bg-emerald-500 ring-2 ring-emerald-200"
+                : isRunning
+                  ? "bg-amber-500 ring-2 ring-amber-200"
+                  : isRunning === false
+                    ? "bg-rose-500"
+                    : "bg-slate-300"
             }`}
-            title={isRunning ? `Print agent connected (${host})` : "Agent not running"}
+            title={
+              isRunning
+                ? `Print agent connected (${isWindows ? "Windows" : "macOS"}: ${host})`
+                : "Agent not running"
+            }
           />
         </Button>
       </DialogTrigger>
@@ -789,69 +817,146 @@ function PrintAgentDialog() {
         <div className="space-y-4 py-2 text-sm">
           <div
             className={`flex items-center justify-between rounded-lg border p-3 ${
-              isRunning
+              isRunning && isWindows
                 ? "border-emerald-200 bg-emerald-50/70 text-emerald-950"
-                : "border-amber-200 bg-amber-50/70 text-amber-950"
+                : isRunning
+                  ? "border-amber-200 bg-amber-50/70 text-amber-950"
+                  : "border-rose-200 bg-rose-50/70 text-rose-950"
             }`}
           >
             <div>
-              <div className="font-medium">
-                Status: {isRunning ? "Active & Connected" : "Not Detected"}
+              <div className="font-medium flex items-center gap-1.5">
+                {isWindows ? (
+                  <Monitor className="h-4 w-4 text-emerald-600" />
+                ) : isRunning ? (
+                  <Laptop className="h-4 w-4 text-amber-600" />
+                ) : null}
+                <span>
+                  Status:{" "}
+                  {isRunning
+                    ? isWindows
+                      ? "Active & Connected (Windows PC)"
+                      : "Connected to Local Mac"
+                    : "Not Detected / Offline"}
+                </span>
               </div>
-              <div className="text-xs opacity-80">
+              <div className="text-xs opacity-85 mt-0.5 font-mono">
                 {isRunning
-                  ? `Connected (${platform || "Active"}${defaultPrinter ? `: ${defaultPrinter}` : ""}) on ${host}:18890`
+                  ? `${host}:18890 (${platform || "Active"}${defaultPrinter ? ` • ${defaultPrinter}` : ""})`
                   : `Could not reach ${host}:18890`}
               </div>
+              {isRunning && !isWindows && (
+                <p className="text-[11px] text-amber-800 mt-1 leading-snug">
+                  ⚠️ Note: If physical printer is connected to a Windows PC, enter that PC's IP below or click Auto-Scan.
+                </p>
+              )}
             </div>
             <Button
               size="sm"
               variant="outline"
               onClick={() => void checkStatus()}
               disabled={checking}
-              className="h-8 gap-1"
+              className="h-8 gap-1 shrink-0 ml-2"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${checking ? "animate-spin" : ""}`} />
               Refresh
             </Button>
           </div>
 
-          <div className="flex items-center gap-2 rounded-lg border bg-muted/30 p-2.5 text-xs">
-            <span className="font-medium text-foreground shrink-0">Agent PC IP:</span>
-            <input
-              type="text"
-              defaultValue={host}
-              placeholder="127.0.0.1 or 192.168.1.X"
-              className="h-7 flex-1 rounded border border-input bg-background px-2 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-primary"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  updateHost((e.target as HTMLInputElement).value);
-                }
-              }}
-              onBlur={(e) => {
-                if (e.target.value !== host) {
-                  updateHost(e.target.value);
-                }
-              }}
-            />
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 rounded-lg border bg-muted/30 p-2.5 text-xs">
+              <span className="font-medium text-foreground shrink-0">Print PC IP:</span>
+              <input
+                type="text"
+                value={ipInput}
+                onChange={(e) => setIpInput(e.target.value)}
+                placeholder="127.0.0.1 or 192.168.1.X"
+                className="h-7 flex-1 rounded border border-input bg-background px-2 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && ipInput.trim()) {
+                    updateHost(ipInput.trim());
+                  }
+                }}
+              />
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-7 text-xs"
+                onClick={() => {
+                  if (ipInput.trim()) updateHost(ipInput.trim());
+                }}
+              >
+                Set IP
+              </Button>
+            </div>
+
             <Button
               size="sm"
-              variant="secondary"
-              className="h-7 text-xs"
-              onClick={(e) => {
-                const input = (e.currentTarget.previousElementSibling as HTMLInputElement)?.value;
-                if (input) updateHost(input);
+              variant="outline"
+              className="w-full h-8 text-xs gap-1.5 border-dashed"
+              onClick={async () => {
+                await scanNetwork();
               }}
+              disabled={scanning}
             >
-              Set IP
+              <Search className={`h-3.5 w-3.5 ${scanning ? "animate-spin" : ""}`} />
+              {scanning
+                ? scanProgress
+                  ? `Scanning ${scanProgress.subnet} (${scanProgress.current}/${scanProgress.total})...`
+                  : "Scanning local network..."
+                : "🔍 Auto-Scan Local Network for Windows Print PC"}
             </Button>
+
+            {discoveredAgents.length > 0 && (
+              <div className="space-y-1 max-h-32 overflow-y-auto rounded-md border border-border/80 bg-muted/20 p-1.5 text-xs">
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase px-1">
+                  Discovered Print Agents:
+                </span>
+                {discoveredAgents.map((agent) => {
+                  const isActive = agent.host === host;
+                  return (
+                    <div
+                      key={agent.host}
+                      className={`flex items-center justify-between p-1.5 rounded text-xs transition-colors ${
+                        isActive ? "bg-primary/10 border border-primary/30" : "hover:bg-muted/60"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        {agent.info.isWindows ? (
+                          <Monitor className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                        ) : (
+                          <Laptop className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                        )}
+                        <span className="font-mono font-medium truncate">{agent.host}</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          ({agent.info.isWindows ? "Windows" : "macOS"})
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant={isActive ? "secondary" : "outline"}
+                        className="h-6 text-[11px] px-2"
+                        onClick={() => {
+                          updateHost(agent.host);
+                          setIpInput(agent.host);
+                        }}
+                        disabled={isActive}
+                      >
+                        {isActive ? "Connected" : "Use"}
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="space-y-2 text-muted-foreground text-xs">
             <p className="font-medium text-foreground">How to setup (Windows):</p>
             <ol className="list-decimal space-y-0.5 pl-4">
               <li>Download and double-click <strong>Automate DirectPrint.exe</strong>.</li>
-              <li>Keep the console window open in the background.</li>
+              <li>Check the Network IP address displayed in its control panel (e.g. 192.168.1.X).</li>
+              <li>Enter that IP above or click Auto-Scan to connect from this device.</li>
             </ol>
           </div>
 

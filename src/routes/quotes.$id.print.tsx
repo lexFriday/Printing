@@ -364,8 +364,8 @@ function PrintQuotePage() {
           />
           <SignatureBlock
             label="Conforme:"
-            name={customer?.contact_person ?? customer?.customer_name ?? "Customer"}
-            helper={customer?.customer_name ?? "Customer"}
+            name={printCustomer?.contact_person ?? printCustomer?.customer_name ?? "Customer"}
+            helper={printCustomer?.customer_name ?? "Customer"}
           />
         </footer>
         </div>

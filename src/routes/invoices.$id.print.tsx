@@ -3,9 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import type { jsPDF as JsPDF } from "jspdf";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
-import { ArrowDown, FileText, Printer } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { PrintShell as BasePrintShell } from "@/components/print/PrintShell";
+import { ArrowDown, FileText, Printer } from "lucide-react";
+import { PrintShell as BasePrintShell, usePrintCalibrationContext } from "@/components/print/PrintShell";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { fmtDate } from "@/lib/format";
@@ -24,6 +24,16 @@ export const Route = createFileRoute("/invoices/$id/print")({
     includeEwt: search.includeEwt === true || search.includeEwt === "true",
     ewtRate: Number(search.ewtRate ?? 0.02),
   }),
+  errorComponent: ({ error }) => (
+    <BasePrintShell backTo="/invoices" backLabel="Back to invoices">
+      <Alert variant="destructive">
+        <AlertTitle>Unable to load invoice</AlertTitle>
+        <AlertDescription>
+          {error instanceof Error ? error.message : "Something went wrong while loading this invoice."}
+        </AlertDescription>
+      </Alert>
+    </BasePrintShell>
+  ),
   component: PrintInvoicePage,
 });
 
@@ -52,38 +62,37 @@ type InvoiceJob = {
 const SERVICE_INVOICE_LINE_LIMIT = 6;
 const SERVICE_INVOICE_PDF_SIZE_PT = [425.2, 566.93];
 
-// Ruler Measurements for 15cm x 20cm pre-printed Service Invoice:
-// Shifted down ~1.8mm (+0.18 cm) so everything sits centered inside pre-printed boxes
-// Date: 4.05 cm
-export const SI_DATE_TOP_CM = 4.05;
-// SOLD TO: 4.52 cm
-export const SI_SOLD_TO_TOP_CM = 4.52;
-// Registered Name: 5.16 cm
-export const SI_REGISTERED_NAME_TOP_CM = 5.16;
-// TIN: 5.63 cm
-export const SI_TIN_TOP_CM = 5.63;
-// Business Address: 6.27 cm
-export const SI_ADDRESS_TOP_CM = 6.27;
+// Ruler Measurements for 15cm x 20cm pre-printed Service Invoice (shifted up ~1.2mm to center in boxes):
+// Date: 3.75 cm
+const SI_DATE_TOP_CM = 3.75;
+// SOLD TO: 4.22 cm
+const SI_SOLD_TO_TOP_CM = 4.22;
+// Registered Name: 4.86 cm
+const SI_REGISTERED_NAME_TOP_CM = 4.86;
+// TIN: 5.33 cm
+const SI_TIN_TOP_CM = 5.33;
+// Business Address: 5.97 cm
+const SI_ADDRESS_TOP_CM = 5.97;
 
-// Item table starts at 7.39 cm (centered within row box)
-export const SI_ITEMS_START_TOP_CM = 7.39;
-// Totals summary table starts at 14.05 cm (centered within totals box)
-export const SI_TOTALS_START_TOP_CM = 14.05;
+// Item table starts at 7.09 cm (centered within row box)
+const SI_ITEMS_START_TOP_CM = 7.09;
+// Totals summary table starts at 13.75 cm (centered within totals box)
+const SI_TOTALS_START_TOP_CM = 13.75;
 
 // Uniform row pitch for pre-printed carbonless form:
 // 1/5 inch = 5.08 mm = 0.508 cm (~5mm per row)
-export const SI_ROW_STEP_CM = 0.508;
+const SI_ROW_STEP_CM = 0.508;
 
-export function getSiRowOffsetCm(rowIndex: number): number {
+function getSiRowOffsetCm(rowIndex: number): number {
   if (rowIndex <= 0) return 0;
   return rowIndex * SI_ROW_STEP_CM;
 }
 
-export function siItemTopCm(index: number): number {
+function siItemTopCm(index: number): number {
   return SI_ITEMS_START_TOP_CM + index * SI_ROW_STEP_CM;
 }
 
-export function siTotalsTopCm(index: number): number {
+function siTotalsTopCm(index: number): number {
   return SI_TOTALS_START_TOP_CM + index * SI_ROW_STEP_CM;
 }
 
@@ -419,6 +428,9 @@ function ServiceInvoiceDetailsCard({
 }
 
 function ServiceInvoiceInsertionGuide({ printProps }: { printProps?: ServiceInvoiceFormProps }) {
+  const { printerModel } = usePrintCalibrationContext();
+  const isL121 = printerModel === "epson-l121";
+
   return (
     <div className="rounded-xl border bg-white p-5 shadow-xs space-y-4">
       <div className="flex items-center justify-between border-b pb-3">
@@ -427,7 +439,7 @@ function ServiceInvoiceInsertionGuide({ printProps }: { printProps?: ServiceInvo
           <span className="font-semibold text-sm text-slate-900">Printer Insertion Guide</span>
         </div>
         <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
-          15 cm (5.9&quot;) Portrait Feed
+          {isL121 ? "Epson L121 Right-Load (15 cm / 5.9\")" : "15 cm (5.9\") Portrait Feed"}
         </span>
       </div>
 
@@ -482,9 +494,19 @@ function ServiceInvoiceInsertionGuide({ printProps }: { printProps?: ServiceInvo
 
           {/* Printer Feed Slot at the BOTTOM */}
           <div className="w-full max-w-[260px] flex items-center justify-between px-3 py-1.5 rounded-b-md bg-slate-800 text-white text-[10px] font-mono font-medium shadow-sm border-t-2 border-emerald-400">
-            <span className="text-slate-400 font-bold">◄ Left Guide</span>
-            <span className="text-emerald-300 font-bold">15 cm Guide Feeder Slot</span>
-            <span className="text-slate-400 font-bold">Right Guide ►</span>
+            {isL121 ? (
+              <>
+                <span className="text-slate-400 font-bold">◄ Slide Left Guide</span>
+                <span className="text-blue-300 font-bold">15 cm Slot</span>
+                <span className="text-amber-400 font-bold">Fixed Right Guide ▮</span>
+              </>
+            ) : (
+              <>
+                <span className="text-slate-400 font-bold">◄ Left Guide</span>
+                <span className="text-emerald-300 font-bold">15 cm Guide Feeder Slot</span>
+                <span className="text-slate-400 font-bold">Right Guide ►</span>
+              </>
+            )}
           </div>
         </div>
 
@@ -495,9 +517,13 @@ function ServiceInvoiceInsertionGuide({ printProps }: { printProps?: ServiceInvo
               1
             </div>
             <div>
-              <p className="font-semibold text-slate-900 text-xs">Set 15 cm Guides on Feeder Slot Below</p>
+              <p className="font-semibold text-slate-900 text-xs">
+                {isL121 ? "Align Against Fixed Right Guide" : "Set 15 cm Guides on Feeder Slot Below"}
+              </p>
               <p className="text-[11px] text-slate-600 leading-snug">
-                Snug the paper feed guide rails to 15 cm (~5.9&quot;) width to prevent skew during printing.
+                {isL121
+                  ? "Load invoice flush against the fixed right guide rail, then slide the left guide snugly to 15 cm (~5.9\") width."
+                  : "Snug the paper feed guide rails to 15 cm (~5.9\") width to prevent skew during printing in center."}
               </p>
             </div>
           </div>
@@ -714,26 +740,12 @@ async function buildServiceInvoicePdf({
   lines.forEach((line, index) => {
     const top = siItemTopCm(index);
     const descText = (line.description || "").trim();
-    pdf.setFontSize(7.5);
+    pdf.setFontSize(8.5);
     const fieldWidthPt = 6.85 * (72 / 2.54);
-    const descLines = (pdf.splitTextToSize(descText.toUpperCase(), fieldWidthPt) as string[]) || [];
-    const isMultiLine = descLines.length > 1;
+    const singleLineWidth = pdf.getTextWidth(descText.toUpperCase());
+    const isSingleLine = singleLineWidth <= fieldWidthPt;
 
-    if (isMultiLine) {
-      draw(
-        {
-          text: descText,
-          top: top - 0.1,
-          left: 1.05,
-          width: 6.85,
-          size: 7.0,
-          wrap: true,
-          maxLines: 2,
-          lineHeightFactor: 1.05,
-        },
-        "lineDescription",
-      );
-    } else {
+    if (isSingleLine) {
       draw(
         {
           text: descText,
@@ -743,6 +755,20 @@ async function buildServiceInvoicePdf({
           size: 8.5,
           minSize: 6.5,
           fitToWidth: true,
+        },
+        "lineDescription",
+      );
+    } else {
+      draw(
+        {
+          text: descText,
+          top: top - 0.14,
+          left: 1.05,
+          width: 6.85,
+          size: 6.0,
+          wrap: true,
+          maxLines: 2,
+          lineHeightFactor: 0.9,
         },
         "lineDescription",
       );
@@ -759,8 +785,8 @@ async function buildServiceInvoicePdf({
       {
         text: formatPrintMoney(line.line_total),
         top,
-        left: 11.54,
-        width: 2.25,
+        left: 11.85,
+        width: 2.35,
         align: "right",
       },
       "lineAmount",
@@ -771,8 +797,8 @@ async function buildServiceInvoicePdf({
     {
       text: formatPrintMoney(printableGrossTotal),
       top: siTotalsTopCm(0),
-      left: 11.42,
-      width: 2.3,
+      left: 11.85,
+      width: 2.35,
       align: "right",
     },
     "totalSales",
@@ -781,8 +807,8 @@ async function buildServiceInvoicePdf({
     {
       text: isVatable ? formatPrintMoney(vatAmount) : "",
       top: siTotalsTopCm(1),
-      left: 11.42,
-      width: 2.3,
+      left: 11.85,
+      width: 2.35,
       align: "right",
     },
     "vat",
@@ -791,8 +817,8 @@ async function buildServiceInvoicePdf({
     {
       text: formatPrintMoney(isVatable ? vatableSales : printableAmountDue),
       top: siTotalsTopCm(2),
-      left: 11.42,
-      width: 2.3,
+      left: 11.85,
+      width: 2.35,
       align: "right",
     },
     "amountNetOfVat",
@@ -801,8 +827,8 @@ async function buildServiceInvoicePdf({
     {
       text: isVatable ? formatPrintMoney(vatAmount) : "",
       top: siTotalsTopCm(4),
-      left: 11.42,
-      width: 2.3,
+      left: 11.85,
+      width: 2.35,
       align: "right",
     },
     "addVat",
@@ -811,8 +837,8 @@ async function buildServiceInvoicePdf({
     {
       text: showEwt ? formatPrintMoney(printEwtAmount) : "",
       top: siTotalsTopCm(5),
-      left: 11.42,
-      width: 2.3,
+      left: 11.85,
+      width: 2.35,
       align: "right",
     },
     "withholdingTax",
@@ -821,8 +847,8 @@ async function buildServiceInvoicePdf({
     {
       text: formatPrintMoney(finalAmount),
       top: siTotalsTopCm(6),
-      left: 11.42,
-      width: 2.3,
+      left: 11.85,
+      width: 2.35,
       align: "right",
       size: 11,
     },
@@ -896,10 +922,11 @@ function ServiceInvoiceForm({
           return (
             <div key={line.id}>
               <OverlayValue
-                top={`${isMultiLine ? siItemTopCm(index) - 0.1 : siItemTopCm(index)}cm`}
+                top={`${isMultiLine ? siItemTopCm(index) - 0.14 : siItemTopCm(index)}cm`}
                 left="1.16cm"
                 width="6.85cm"
-                size={isMultiLine ? "7.5px" : "9px"}
+                size={isMultiLine ? "6.0px" : "9px"}
+                lineHeight={isMultiLine ? "1.1" : undefined}
                 wrap
               >
                 {line.description}
@@ -917,8 +944,8 @@ function ServiceInvoiceForm({
               </OverlayValue>
               <OverlayValue
                 top={`${siItemTopCm(index)}cm`}
-                left="11.67cm"
-                width="2.25cm"
+                left="11.85cm"
+                width="2.35cm"
                 align="right"
               >
                 {formatPrintMoney(line.line_total)}
@@ -927,25 +954,25 @@ function ServiceInvoiceForm({
           );
         })}
 
-      <OverlayValue top={`${siTotalsTopCm(0)}cm`} left="11.55cm" width="2.3cm" align="right">
+      <OverlayValue top={`${siTotalsTopCm(0)}cm`} left="11.85cm" width="2.35cm" align="right">
         {formatPrintMoney(printableGrossTotal)}
       </OverlayValue>
-      <OverlayValue top={`${siTotalsTopCm(1)}cm`} left="11.55cm" width="2.3cm" align="right">
+      <OverlayValue top={`${siTotalsTopCm(1)}cm`} left="11.85cm" width="2.35cm" align="right">
         {isVatable ? formatPrintMoney(vatAmount) : ""}
       </OverlayValue>
-      <OverlayValue top={`${siTotalsTopCm(2)}cm`} left="11.55cm" width="2.3cm" align="right">
+      <OverlayValue top={`${siTotalsTopCm(2)}cm`} left="11.85cm" width="2.35cm" align="right">
         {formatPrintMoney(isVatable ? vatableSales : printableAmountDue)}
       </OverlayValue>
-      <OverlayValue top={`${siTotalsTopCm(4)}cm`} left="11.55cm" width="2.3cm" align="right">
+      <OverlayValue top={`${siTotalsTopCm(4)}cm`} left="11.85cm" width="2.35cm" align="right">
         {isVatable ? formatPrintMoney(vatAmount) : ""}
       </OverlayValue>
-      <OverlayValue top={`${siTotalsTopCm(5)}cm`} left="11.55cm" width="2.3cm" align="right">
+      <OverlayValue top={`${siTotalsTopCm(5)}cm`} left="11.85cm" width="2.35cm" align="right">
         {showEwt ? formatPrintMoney(printEwtAmount) : ""}
       </OverlayValue>
       <OverlayValue
         top={`${siTotalsTopCm(6)}cm`}
-        left="11.55cm"
-        width="2.3cm"
+        left="11.85cm"
+        width="2.35cm"
         align="right"
         size="11px"
       >

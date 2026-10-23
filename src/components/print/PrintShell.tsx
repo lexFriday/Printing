@@ -1,8 +1,17 @@
 import { Link } from "@tanstack/react-router";
 import type { jsPDF as JsPDF } from "jspdf";
-import { createContext, useContext, type CSSProperties, type ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Download, RefreshCw, Settings2, Zap } from "lucide-react";
+import { createContext, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  ArrowLeft,
+  Download,
+  Laptop,
+  Monitor,
+  RefreshCw,
+  Search,
+  Settings2,
+  Wifi,
+  Zap,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
@@ -18,10 +27,22 @@ import {
 } from "@/lib/printCalibration";
 import { loadPrintCalibration } from "@/lib/printCalibrationData";
 
-const PrintCalibrationContext = createContext<{
+export interface PrintCalibrationContextValue {
   calibration: PrintCalibration;
   buildPdf?: (calibration: PrintCalibration) => Promise<JsPDF | null> | JsPDF | null;
-}>({ calibration: DEFAULT_PRINT_CALIBRATION });
+  printerModel: "standard" | "epson-l121";
+  setPrinterModel: (model: "standard" | "epson-l121") => void;
+}
+
+export const PrintCalibrationContext = createContext<PrintCalibrationContextValue>({
+  calibration: DEFAULT_PRINT_CALIBRATION,
+  printerModel: "standard",
+  setPrinterModel: () => {},
+});
+
+export function usePrintCalibrationContext() {
+  return useContext(PrintCalibrationContext);
+}
 
 export function PrintShell({
   backTo,
@@ -70,6 +91,35 @@ export function PrintShell({
 }) {
   const [pdfAction, setPdfAction] = useState<"download" | "direct" | null>(null);
   const printAgent = usePrintAgent();
+  const [customHostInput, setCustomHostInput] = useState(printAgent.host);
+  useEffect(() => {
+    setCustomHostInput(printAgent.host);
+  }, [printAgent.host]);
+
+  const [printerModel, setPrinterModel] = useState<"standard" | "epson-l121">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("print_target_printer_model");
+      if (saved === "standard" || saved === "epson-l121") return saved;
+    }
+    return "standard";
+  });
+
+  const handlePrinterModelChange = (model: "standard" | "epson-l121") => {
+    setPrinterModel(model);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("print_target_printer_model", model);
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && !localStorage.getItem("print_target_printer_model")) {
+      const defaultPrn = printAgent.defaultPrinter || "";
+      if (/l121|l120/i.test(defaultPrn)) {
+        setPrinterModel("epson-l121");
+      }
+    }
+  }, [printAgent.defaultPrinter]);
+
   const [calibration, setCalibration] = useState<PrintCalibration>(DEFAULT_PRINT_CALIBRATION);
   const [, setCalibrationLoading] = useState(!!calibrationDocument);
   useEffect(() => {
@@ -374,18 +424,292 @@ export function PrintShell({
         <div className="flex flex-wrap items-center justify-end gap-2">
           {directPrintJob ? (
             <div className="flex items-center gap-1.5">
+              <div className="inline-flex rounded-lg border border-slate-300 bg-white p-0.5 shadow-2xs text-xs">
+                <button
+                  type="button"
+                  onClick={() => handlePrinterModelChange("standard")}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
+                    printerModel === "standard"
+                      ? "bg-slate-900 text-white shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                  title="Standard Center-Feed Printers (Epson L1210, Canon G2010, HP, etc.)"
+                >
+                  Standard (Center)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePrinterModelChange("epson-l121")}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
+                    printerModel === "epson-l121"
+                      ? "bg-blue-600 text-white shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                  title="Epson L120 / L121 Series (Right-edge feed, top-loaded)"
+                >
+                  Epson L120 / L121 (Right)
+                </button>
+              </div>
+
+              {/* Print Helper Connection & Network Settings Popover */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className={`h-9 px-2.5 text-xs font-medium gap-1.5 border shadow-2xs transition-colors ${
+                      printAgent.isRunning && printAgent.isWindows
+                        ? "border-emerald-300 bg-emerald-50/80 text-emerald-950 hover:bg-emerald-100"
+                        : printAgent.isRunning
+                          ? "border-amber-300 bg-amber-50/80 text-amber-950 hover:bg-amber-100"
+                          : "border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                    }`}
+                    title={
+                      printAgent.isRunning
+                        ? `Connected to ${printAgent.isWindows ? "Windows PC" : "Local Mac"} (${printAgent.host})`
+                        : "Print helper offline — click to configure IP or scan network"
+                    }
+                  >
+                    {printAgent.isWindows ? (
+                      <Monitor className="h-3.5 w-3.5 text-emerald-600" />
+                    ) : printAgent.isRunning ? (
+                      <Laptop className="h-3.5 w-3.5 text-amber-600" />
+                    ) : (
+                      <Wifi className="h-3.5 w-3.5 text-slate-400" />
+                    )}
+                    <span className="font-mono text-[11px] max-w-[130px] truncate">
+                      {printAgent.isRunning
+                        ? printAgent.isWindows
+                          ? `Win: ${printAgent.host}`
+                          : `Mac: ${printAgent.host}`
+                        : printAgent.host === "127.0.0.1"
+                          ? "Offline"
+                          : `Offline: ${printAgent.host}`}
+                    </span>
+                    <span
+                      className={`inline-block h-2 w-2 rounded-full ${
+                        printAgent.isRunning && printAgent.isWindows
+                          ? "bg-emerald-500 ring-2 ring-emerald-200"
+                          : printAgent.isRunning
+                            ? "bg-amber-500 ring-2 ring-amber-200"
+                            : "bg-rose-400"
+                      }`}
+                    />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-88 p-4 text-xs shadow-xl space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-primary" />
+                      <span className="font-semibold text-sm">Direct Print Helper</span>
+                    </div>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${
+                        printAgent.isRunning && printAgent.isWindows
+                          ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                          : printAgent.isRunning
+                            ? "bg-amber-100 text-amber-800 border border-amber-300"
+                            : "bg-rose-100 text-rose-800 border border-rose-300"
+                      }`}
+                    >
+                      {printAgent.isRunning
+                        ? printAgent.isWindows
+                          ? "Windows Online"
+                          : "macOS Online"
+                        : "Offline"}
+                    </span>
+                  </div>
+
+                  {/* Connected Details / Status summary */}
+                  <div
+                    className={`rounded-lg p-2.5 border text-xs space-y-1 ${
+                      printAgent.isRunning && printAgent.isWindows
+                        ? "bg-emerald-50/60 border-emerald-200 text-emerald-950"
+                        : printAgent.isRunning
+                          ? "bg-amber-50/60 border-amber-200 text-amber-950"
+                          : "bg-muted/40 border-border text-muted-foreground"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">
+                        {printAgent.isRunning
+                          ? printAgent.isWindows
+                            ? "Connected to Windows Print PC"
+                            : "Connected to Local Mac (CUPS)"
+                          : "Agent Not Reachable"}
+                      </span>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-5 w-5 p-0"
+                        onClick={() => void printAgent.checkStatus()}
+                        disabled={printAgent.checking}
+                        title="Recheck status"
+                      >
+                        <RefreshCw
+                          className={`h-3 w-3 ${printAgent.checking ? "animate-spin" : ""}`}
+                        />
+                      </Button>
+                    </div>
+                    <div className="text-[11px] opacity-90 font-mono">
+                      {printAgent.host}:18890
+                      {printAgent.defaultPrinter ? ` • ${printAgent.defaultPrinter}` : ""}
+                    </div>
+                    {printAgent.isRunning && !printAgent.isWindows && (
+                      <p className="text-[10.5px] text-amber-800 mt-1 leading-snug">
+                        ⚠️ If your physical printer (Epson L121) is plugged into a Windows PC, enter that PC's IP below or click Auto-Scan.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Manual IP input */}
+                  <div>
+                    <label className="text-[11px] font-medium text-foreground block mb-1">
+                      Print Helper PC IP / Hostname:
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={customHostInput}
+                        onChange={(e) => setCustomHostInput(e.target.value)}
+                        placeholder="e.g. 192.168.1.50 or Tailscale IP"
+                        className="h-8 flex-1 rounded border border-input bg-background px-2.5 font-mono text-xs focus:outline-hidden focus:ring-1 focus:ring-primary"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && customHostInput.trim()) {
+                            printAgent.updateHost(customHostInput.trim());
+                            toast.info(`Connecting to ${customHostInput.trim()}...`);
+                          }
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        className="h-8 text-xs shrink-0"
+                        onClick={() => {
+                          if (customHostInput.trim()) {
+                            printAgent.updateHost(customHostInput.trim());
+                            toast.info(`Connecting to ${customHostInput.trim()}...`);
+                          }
+                        }}
+                      >
+                        Connect
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Auto-Scan Network */}
+                  <div className="space-y-1.5 pt-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full h-8 text-xs gap-1.5 border-dashed"
+                      onClick={async () => {
+                        toast.info("Scanning local subnet for Automate DirectPrint agents...");
+                        const found = await printAgent.scanNetwork();
+                        if (found.length > 0) {
+                          toast.success(`Found ${found.length} print helper(s)! Connected to ${found[0].host}.`);
+                        } else {
+                          toast.warning("No print helpers found on local subnet. Make sure Automate DirectPrint.exe is running on the PC.");
+                        }
+                      }}
+                      disabled={printAgent.scanning}
+                    >
+                      <Search className={`h-3.5 w-3.5 ${printAgent.scanning ? "animate-spin" : ""}`} />
+                      {printAgent.scanning
+                        ? printAgent.scanProgress
+                          ? `Scanning ${printAgent.scanProgress.subnet} (${printAgent.scanProgress.current}/${printAgent.scanProgress.total})...`
+                          : "Scanning local network..."
+                        : "🔍 Auto-Scan Local Network for Print PC"}
+                    </Button>
+
+                    {/* Discovered Agents List */}
+                    {printAgent.discoveredAgents.length > 0 && (
+                      <div className="mt-2 space-y-1 max-h-36 overflow-y-auto rounded-md border border-border/80 bg-muted/20 p-1.5">
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase px-1">
+                          Discovered Agents:
+                        </span>
+                        {printAgent.discoveredAgents.map((agent) => {
+                          const isActive = agent.host === printAgent.host;
+                          return (
+                            <div
+                              key={agent.host}
+                              className={`flex items-center justify-between p-1.5 rounded text-xs transition-colors ${
+                                isActive ? "bg-primary/10 border border-primary/30" : "hover:bg-muted/60"
+                              }`}
+                            >
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                {agent.info.isWindows ? (
+                                  <Monitor className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                                ) : (
+                                  <Laptop className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                                )}
+                                <div className="truncate">
+                                  <span className="font-mono font-medium">{agent.host}</span>
+                                  <span className="text-[10px] text-muted-foreground ml-1">
+                                    ({agent.info.isWindows ? "Windows" : "macOS"})
+                                  </span>
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant={isActive ? "secondary" : "outline"}
+                                className="h-6 text-[11px] px-2"
+                                onClick={() => {
+                                  printAgent.updateHost(agent.host);
+                                  setCustomHostInput(agent.host);
+                                }}
+                                disabled={isActive}
+                              >
+                                {isActive ? "Active" : "Use"}
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Shortcuts & Links */}
+                  <div className="pt-2 border-t border-border/60 flex items-center justify-between text-[11px] text-muted-foreground">
+                    <button
+                      type="button"
+                      className="hover:underline text-primary"
+                      onClick={() => {
+                        printAgent.updateHost("127.0.0.1");
+                        setCustomHostInput("127.0.0.1");
+                      }}
+                    >
+                      Use Localhost
+                    </button>
+                    <a
+                      href={`http://${printAgent.host || "127.0.0.1"}:18890`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="hover:underline inline-flex items-center gap-0.5 text-primary"
+                    >
+                      Open Control Panel →
+                    </a>
+                  </div>
+                </PopoverContent>
+              </Popover>
+
               <Button
                 variant={printAgent.isRunning ? "default" : "secondary"}
                 disabled={pdfAction !== null}
                 onClick={async () => {
                   if (!printAgent.isRunning) {
                     toast.error(
-                      "Direct Print Agent is offline. Please launch the print helper on your computer.",
+                      "Direct Print Agent is offline. Please launch Automate DirectPrint.exe on your computer or connect to its IP.",
                       {
                         duration: 5000,
                       },
                     );
                     return;
+                  }
+                  if (printerModel === "epson-l121" && !printAgent.isWindows) {
+                    toast.warning(
+                      `Direct Print is currently connected to macOS (${printAgent.host}). The Epson L121 spooler requires Windows. Please connect to your Windows PC IP.`,
+                      { duration: 6000 },
+                    );
                   }
                   if (printAgent.supported === false) {
                     toast.error(
@@ -397,10 +721,20 @@ export function PrintShell({
                   try {
                     await printAgent.sendToPrinter({
                       identifier: directPrintJob.identifier,
-                      jobData: directPrintJob.jobData,
+                      jobData: {
+                        ...(typeof directPrintJob.jobData === "object" && directPrintJob.jobData !== null
+                          ? directPrintJob.jobData
+                          : {}),
+                        printerModel,
+                      },
+                      printerModel,
                       calibration: calibrationDocument ? calibration : undefined,
                     });
-                    toast.success("Print job sent directly to printer spooler!");
+                    toast.success(
+                      printerModel === "epson-l121"
+                        ? "Print job sent to Epson L121 right-feeder spooler!"
+                        : "Print job sent directly to printer spooler!",
+                    );
                   } catch (err: unknown) {
                     toast.error(err instanceof Error ? err.message : "Could not print via agent.");
                   } finally {
@@ -413,7 +747,7 @@ export function PrintShell({
                 {pdfAction === "direct"
                   ? "Sending..."
                   : printAgent.isRunning && printAgent.supported !== false
-                    ? "Direct Print (Ready)"
+                    ? `Direct Print (${printerModel === "epson-l121" ? "Epson L121" : "Ready"})`
                     : printAgent.isRunning && printAgent.supported === false
                       ? `Direct Print (Unsupported: ${printAgent.platform})`
                       : "Direct Print"}
@@ -457,7 +791,14 @@ export function PrintShell({
           } as CSSProperties
         }
       >
-        <PrintCalibrationContext.Provider value={{ calibration, buildPdf: buildGeneratedPdf }}>
+        <PrintCalibrationContext.Provider
+          value={{
+            calibration,
+            buildPdf: buildGeneratedPdf,
+            printerModel,
+            setPrinterModel: handlePrinterModelChange,
+          }}
+        >
           {children}
         </PrintCalibrationContext.Provider>
       </div>
