@@ -31,7 +31,7 @@ function cleanHost(h: string): string {
 
 export async function probeHost(
   candidateHost: string,
-  timeoutMs = 1500,
+  timeoutMs = 2500,
 ): Promise<DiscoveredAgent | null> {
   const clean = cleanHost(candidateHost);
   if (!clean || clean === "0.0.0.0") return null;
@@ -61,8 +61,10 @@ export async function probeHost(
         };
       }
     }
-  } catch {
-    // Unreachable or blocked
+  } catch (err) {
+    if (clean === "127.0.0.1" || clean === "localhost") {
+      console.warn(`[PrintAgent] Health check unreachable at http://${clean}:${DEFAULT_PORT}:`, err);
+    }
   }
   return null;
 }
@@ -94,7 +96,7 @@ export function usePrintAgent() {
         typeof window !== "undefined" ? localStorage.getItem("dr_print_agent_host") : null;
       const activeHost = cleanHost(targetHost || savedHost || host || "127.0.0.1");
 
-      const match = await probeHost(activeHost, 1500);
+      const match = await probeHost(activeHost, 2500);
 
       if (match) {
         setIsRunning(true);
@@ -108,7 +110,20 @@ export function usePrintAgent() {
         return true;
       }
 
-      // If custom host was unreachable and wasn't localhost, do NOT automatically fallback to localhost silently
+      // If custom host was unreachable and wasn't localhost, attempt localhost fallback
+      if (activeHost !== "127.0.0.1" && activeHost !== "localhost") {
+        const localMatch = await probeHost("127.0.0.1", 1500);
+        if (localMatch) {
+          setIsRunning(true);
+          setAgentInfo(localMatch.info);
+          setHost("127.0.0.1");
+          localStorage.setItem("dr_print_agent_host", "127.0.0.1");
+          checkingRef.current = false;
+          setChecking(false);
+          return true;
+        }
+      }
+
       setIsRunning(false);
       setAgentInfo(null);
       checkingRef.current = false;
