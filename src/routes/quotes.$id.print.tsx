@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { CSSProperties, ReactNode } from "react";
 import type { jsPDF as JsPDF } from "jspdf";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Download, Printer } from "lucide-react";
+import { ArrowLeft, Download, FileSpreadsheet, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { fmtDate } from "@/lib/format";
 import { COMPANY_PROFILE } from "@/lib/brand";
 import { quotePaperForCompany } from "@/lib/quotePaper";
 import { signedSignatureUrl } from "@/lib/signatureStorage";
+import { downloadQuoteExcel } from "@/lib/quoteExcelExport";
 
 export const Route = createFileRoute("/quotes/$id/print")({
   head: () => ({ meta: [{ title: `Print quotation — ${COMPANY_PROFILE.name}` }] }),
@@ -429,6 +430,46 @@ function PrintShell({
     }
   }
 
+  const [downloadingExcel, setDownloadingExcel] = useState(false);
+
+  async function downloadExcel() {
+    if (!pdfData) {
+      toast.error("No quotation data found.");
+      return;
+    }
+    setDownloadingExcel(true);
+    try {
+      await downloadQuoteExcel({
+        quoteNumber: pdfData.quoteNumber,
+        quoteDate: pdfData.quoteDate,
+        projectName: pdfData.projectName,
+        customerName: pdfData.customer?.customer_name,
+        customerAddress: pdfData.customer?.address,
+        contactPerson: pdfData.customer?.contact_person,
+        contactNumber: pdfData.customer?.contact_number,
+        email: pdfData.customer?.email,
+        tinNumber: pdfData.customer?.tin_number,
+        taxType: pdfData.taxType,
+        terms: pdfData.terms,
+        remarks: pdfData.remarks,
+        salesAgent: pdfData.approvedByName,
+        subtotal: pdfData.subtotal,
+        adjustmentAmount: pdfData.adjustmentAmount,
+        totalAmount: pdfData.totalAmount,
+        lines: pdfData.lines,
+        companyLogoUrl: company.logo,
+        approvedBySignatureUrl: pdfData.approvedBySignatureUrl,
+        attachments: pdfData.attachments,
+      });
+      toast.success("Quotation Excel downloaded.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to generate Quotation Excel.");
+    } finally {
+      setDownloadingExcel(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 p-6 quotation-print-shell">
       <style>{`
@@ -510,6 +551,9 @@ function PrintShell({
           </Button>
         )}
         <div className="flex flex-wrap justify-end gap-2">
+          <Button variant="outline" onClick={downloadExcel} disabled={downloadingExcel || !pdfData}>
+            <FileSpreadsheet className="h-4 w-4" /> {downloadingExcel ? "Preparing Excel..." : "Download Excel"}
+          </Button>
           <Button variant="outline" onClick={downloadPdf} disabled={downloading || !pdfData}>
             <Download className="h-4 w-4" /> {downloading ? "Preparing..." : "Download PDF"}
           </Button>

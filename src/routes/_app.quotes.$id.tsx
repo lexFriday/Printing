@@ -50,6 +50,7 @@ import {
   Receipt,
   RotateCcw,
   MoreHorizontal,
+  FileSpreadsheet,
   ShieldAlert,
 } from "lucide-react";
 import { peso, fmtDate } from "@/lib/format";
@@ -61,6 +62,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { canCreateJobOrders, canManageUsers, canReopenQuotes, canSalesWork } from "@/lib/roles";
 import { formatTin } from "@/lib/customers";
 import { computeInclusiveVat, computeQuoteDisplayTotal } from "@/lib/calc";
+import { downloadQuoteExcel } from "@/lib/quoteExcelExport";
+import { COMPANY_PROFILE } from "@/lib/brand";
+import { signedSignatureUrl } from "@/lib/signatureStorage";
 
 export const Route = createFileRoute("/_app/quotes/$id")({
   head: () => ({ meta: [{ title: "Quote - AutoMate PH" }] }),
@@ -356,6 +360,72 @@ function QuoteDetails() {
     quoteSigner.data?.status === "active" && Boolean(quoteSigner.data?.signature_url);
   const selectedApprover = approvers.data?.find((entry) => entry.id === approvedByUserId);
 
+  const handleDownloadExcel = async () => {
+    if (!quote) return;
+    toast.loading("Preparing Excel quotation...", { id: "quote-excel" });
+    try {
+      const { data: attachments } = await supabase
+        .from("quote_attachments")
+        .select("id, quote_line_item_id, file_name, storage_path")
+        .eq("quotation_id", id)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: true });
+
+      const signedAttachments = await Promise.all(
+        (attachments ?? []).map(async (attachment) => {
+          const { data: signed } = await supabase.storage
+            .from("quote-attachments")
+            .createSignedUrl(attachment.storage_path, 60 * 10);
+          return {
+            id: attachment.id,
+            quote_line_item_id: attachment.quote_line_item_id,
+            file_name: attachment.file_name,
+            signedUrl: signed?.signedUrl ?? null,
+          };
+        }),
+      );
+
+      let signatureUrl: string | null = null;
+      if (quote.status === "draft" && quote.sales_agent_user_id) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("signature_url")
+          .eq("id", quote.sales_agent_user_id)
+          .maybeSingle();
+        signatureUrl = await signedSignatureUrl(profile?.signature_url);
+      } else if (quote.sales_agent_signature_url_snapshot) {
+        signatureUrl = await signedSignatureUrl(quote.sales_agent_signature_url_snapshot);
+      }
+
+      await downloadQuoteExcel({
+        quoteNumber: quote.quote_number,
+        quoteDate: quote.quote_date,
+        projectName: quote.project_name,
+        customerName: customer?.customer_name,
+        customerAddress: customer?.address,
+        contactPerson: quote.contact_name_snapshot ?? customer?.contact_person,
+        contactNumber: quote.contact_phone_snapshot ?? customer?.contact_number,
+        email: quote.contact_email_snapshot ?? (customer as { email?: string | null } | null)?.email,
+        tinNumber: customer?.tin_number,
+        taxType: quote.tax_type,
+        terms: quote.terms,
+        remarks: quote.remarks,
+        salesAgent: quote.sales_agent,
+        subtotal: Number(quote.subtotal || 0),
+        adjustmentAmount: Number(quote.adjustment_amount || 0),
+        totalAmount: quoteDisplayTotal,
+        lines: quoteLines,
+        companyLogoUrl: COMPANY_PROFILE.logo,
+        approvedBySignatureUrl: signatureUrl,
+        attachments: signedAttachments,
+      });
+      toast.success("Quotation Excel downloaded.", { id: "quote-excel" });
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to generate Quotation Excel.", { id: "quote-excel" });
+    }
+  };
+
   return (
     <div className="space-y-5">
       <Button asChild variant="ghost" size="sm" className="-ml-2">
@@ -384,6 +454,9 @@ function QuoteDetails() {
                 <Link to="/quotes/$id/print" params={{ id }}>
                   <Printer className="mr-2 h-4 w-4" /> Print Quote
                 </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownloadExcel}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" /> Download Excel
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
