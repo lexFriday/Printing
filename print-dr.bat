@@ -12,14 +12,19 @@ set TARGET=%~1
 set PRINTER=%~2
 
 if "%TARGET%"=="" (
-  echo.
-  echo [Delivery Receipt Direct Printer]
-  echo.
-  echo Please provide a Job Order ID or Number.
-  echo Example:
-  echo   print-dr.bat 2026-001
-  echo   print-dr.bat test --pdf-only
-  echo.
+  echo ========================================================
+  echo   Automate DirectPrint Helper
+  echo ========================================================
+  echo   1. Start Background Print Server (Daemon for Web App)
+  echo   2. Print single Delivery Receipt or Test PDF
+  echo ========================================================
+  set /p MODE="Select [1 or 2, default is 1]: "
+  if "!MODE!"=="" set MODE=1
+  if "!MODE!"=="1" (
+    echo Starting Print Daemon on port 18890...
+    node "%~dp0scripts\print-delivery-receipt.mjs" --daemon
+    exit /b %ERRORLEVEL%
+  )
   set /p TARGET="Enter Job Number or 'test': "
 )
 
