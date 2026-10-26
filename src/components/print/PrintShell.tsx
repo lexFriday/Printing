@@ -293,10 +293,10 @@ export function PrintShell({
                 typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.userAgent);
               const downloadHref = isClientMac
                 ? "/Automate DirectPrint-mac.zip"
-                : "/Automate DirectPrint.exe";
+                : "/Automate DirectPrint.zip";
               const downloadName = isClientMac
                 ? "Automate DirectPrint-mac.zip"
-                : "Automate DirectPrint.exe";
+                : "Automate DirectPrint.zip";
               return (
                 <Button
                   asChild
@@ -305,7 +305,7 @@ export function PrintShell({
                 >
                   <a href={downloadHref} download={downloadName}>
                     <Download className="h-3 w-3 mr-1.5" />
-                    Download Helper
+                    Download Helper (.zip)
                   </a>
                 </Button>
               );
