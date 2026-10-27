@@ -1364,12 +1364,6 @@ function openAgentGui(port = DAEMON_PORT) {
             stdio: "ignore",
             windowsHide: false,
           });
-          const launchTime = Date.now();
-          child.on("exit", () => {
-            if (Date.now() - launchTime > 3000) {
-              shutdownAgent(0);
-            }
-          });
           child.unref();
           return;
         } catch {}
@@ -2207,7 +2201,7 @@ function closeParentTerminal() {
 
       if (isTerminal) {
         try {
-          execSync(`taskkill /F /PID ${ppid} /T`, { windowsHide: true, timeout: 2000 });
+          execSync(`taskkill /F /PID ${ppid}`, { windowsHide: true, timeout: 2000 });
         } catch {
           exec(`taskkill /F /PID ${ppid}`, { windowsHide: true });
         }
@@ -2267,10 +2261,22 @@ function closeParentTerminal() {
   }
 }
 
-function shutdownAgent(code = 0) {
+function logAgentEvent(level, message, err = null) {
+  const line = `[${new Date().toISOString()}] [${level}] ${message}${err ? " - " + (err.stack || err.message || err) : ""}\n`;
   try {
-    closeParentTerminal();
+    fs.appendFileSync(path.join(process.cwd(), "direct-print.log"), line);
   } catch {}
+  try {
+    fs.appendFileSync(path.join(os.tmpdir(), "direct-print.log"), line);
+  } catch {}
+}
+
+function shutdownAgent(code = 0) {
+  if (code === 0) {
+    try {
+      closeParentTerminal();
+    } catch {}
+  }
   process.exit(code);
 }
 
@@ -2280,6 +2286,7 @@ function pauseAndExit(code = 0) {
 
 // Global exception guards so Windows console window NEVER silently vanishes
 process.on("uncaughtException", (err) => {
+  logAgentEvent("FATAL", "Uncaught exception", err);
   console.error("\n======================================================");
   console.error("  CRITICAL ERROR:");
   console.error(err.stack || err.message || err);
@@ -2288,6 +2295,7 @@ process.on("uncaughtException", (err) => {
 });
 
 process.on("unhandledRejection", (reason) => {
+  logAgentEvent("FATAL", "Unhandled rejection", reason);
   console.error("\n======================================================");
   console.error("  UNHANDLED REJECTION:");
   console.error(reason);
@@ -2304,9 +2312,10 @@ function startPrintDaemon(defaultPrinter) {
 
   if (process.platform === "win32") {
     try {
-      execSync(
+      exec(
         `netsh advfirewall firewall add rule name="Automate DirectPrint Helper" dir=in action=allow protocol=TCP localport=${DAEMON_PORT} profile=any`,
-        { stdio: "ignore" },
+        { windowsHide: true },
+        () => {},
       );
     } catch {
       // Ignored if non-elevated

@@ -106,18 +106,12 @@ if (viList.length > 0) {
   console.log("  ✓ Updated application version and metadata.");
 }
 
-function setPeSubsystemToGui(buffer) {
-  const peOffset = buffer.readUInt32LE(0x3c);
-  const subsystemOffset = peOffset + 24 + 68;
-  buffer.writeUInt16LE(2, subsystemOffset); // 2 = IMAGE_SUBSYSTEM_WINDOWS_GUI (prevents console window)
-  return buffer;
-}
-
 ntRes.outputResource(ntExe);
-const rawExeBinary = Buffer.from(ntExe.generate());
-const finalExeBinary = setPeSubsystemToGui(rawExeBinary);
+// Keep standard CUI subsystem (subsystem 3) — modifying to GUI causes Node 20+ to crash
+// on Windows startup due to invalid stdio handles.
+const finalExeBinary = Buffer.from(ntExe.generate());
 fs.writeFileSync(outputExePath, finalExeBinary);
-console.log("  ✓ Configured Windows GUI subsystem (no console/terminal window).");
+console.log("  ✓ Configured Windows executable (standard console with GUI popup).");
 // Keep legacy filename in sync so older bookmarks or paths continue to work
 fs.copyFileSync(outputExePath, legacyExePath);
 
@@ -127,31 +121,57 @@ const envContent = fs.existsSync(path.join(projectRoot, ".env"))
   : "";
 
 const launcherBatContent = `@echo off
-start "" "%~dp0Automate DirectPrint.exe"
-exit
+title Automate DirectPrint Helper
+cd /d "%~dp0"
+echo ========================================================
+echo   Automate DirectPrint Helper
+echo ========================================================
+echo   Starting Print Server on port 18890...
+echo   Local URL: http://127.0.0.1:18890
+echo ========================================================
+echo.
+"Automate DirectPrint.exe"
+if errorlevel 1 (
+  echo.
+  echo [ERROR] Automate DirectPrint stopped.
+  echo Check direct-print.log for details.
+  pause
+)
+`;
+
+const runNodeBatContent = `@echo off
+title Automate DirectPrint (Node.js Mode)
+cd /d "%~dp0"
+echo Starting Automate DirectPrint via Node.js...
+node agent.cjs --daemon
+if errorlevel 1 (
+  echo.
+  echo [ERROR] Node.js failed to run agent.cjs.
+  pause
+)
 `;
 
 const readmeContent = `# Automate DirectPrint (Arlechino Concepts Inc.)
 
-Single standalone Windows application with Desktop GUI — No terminal, no Node.js needed!
-
 ## How to use:
-1. Double-click "Automate DirectPrint.exe".
-2. The DirectPrint Control Panel GUI window opens on your desktop.
-3. Keep the window open or minimized in the background.
-4. In your web browser, click "Direct Print" on any Delivery Receipt, Check, or Service Invoice page.
-   The job instantly spools to your printer!
+Option A (Standard - No Node.js required):
+  Double-click "Automate DirectPrint.exe" or "run-agent.bat".
 
-## Features:
-- Clean standalone desktop GUI window
-- Live hardware printer detection & selection
-- Test print triggers for DR, Check, Service Invoice, and Check Voucher
-- Real-time print activity history
+Option B (Dev Mode - If you have Node.js installed):
+  Double-click "run-node.bat".
+
+## In your Web Browser:
+1. Open http://127.0.0.1:18890 to verify the Control Panel is active.
+2. In your web app, click Direct Print on any DR, Check, or Invoice.
+3. If using an HTTPS deployed app (e.g. lovableproject.com):
+   Click the lock icon in the address bar -> Site settings -> Set "Insecure content" to Allow -> Reload.
 `;
 
 const zipData = zipSync({
   "Automate DirectPrint.exe": finalExeBinary,
+  "agent.cjs": fs.readFileSync(cjsBundlePath),
   "run-agent.bat": strToU8(launcherBatContent),
+  "run-node.bat": strToU8(runNodeBatContent),
   ".env": strToU8(envContent),
   "README.txt": strToU8(readmeContent),
 });
