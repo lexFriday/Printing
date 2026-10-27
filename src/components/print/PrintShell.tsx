@@ -262,9 +262,15 @@ export function PrintShell({
               <Zap className="h-4 w-4" />
             </div>
             <div>
-              <p className="font-semibold text-amber-950">Direct Print Helper is offline</p>
+              <p className="font-semibold text-amber-950">
+                {typeof window !== "undefined" && window.location.protocol === "https:"
+                  ? "Direct Print Helper: Offline or Blocked by Browser"
+                  : "Direct Print Helper is offline"}
+              </p>
               <p className="text-[11px] text-amber-800/85">
-                Launch the print helper on your computer to enable instant 1-click printing.
+                {typeof window !== "undefined" && window.location.protocol === "https:"
+                  ? "On deployed HTTPS apps, Chrome blocks 127.0.0.1 by default. Click the 🔒 icon next to the URL → Site settings → set 'Insecure content' to Allow → Reload."
+                  : "Launch the print helper on your computer to enable instant 1-click printing."}
               </p>
             </div>
           </div>
@@ -400,16 +406,16 @@ export function PrintShell({
               href={
                 typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.userAgent)
                   ? "/Automate DirectPrint-mac.zip"
-                  : "/Automate DirectPrint.exe"
+                  : "/Automate DirectPrint.zip"
               }
               download={
                 typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.userAgent)
                   ? "Automate DirectPrint-mac.zip"
-                  : "Automate DirectPrint.exe"
+                  : "Automate DirectPrint.zip"
               }
             >
               <Download className="h-3 w-3 mr-1.5" />
-              Download v2.4 Helper
+              Download v2.4 Helper (.zip)
             </a>
           </Button>
         </div>
@@ -559,6 +565,22 @@ export function PrintShell({
                       <p className="text-[10.5px] text-amber-800 mt-1 leading-snug">
                         ⚠️ If your physical printer (Epson L121) is plugged into a Windows PC, enter that PC's IP below or click Auto-Scan.
                       </p>
+                    )}
+                    {!printAgent.isRunning && typeof window !== "undefined" && window.location.protocol === "https:" && (
+                      <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-2.5 text-[11px] text-amber-950 leading-snug space-y-1.5 mt-2">
+                        <div className="font-semibold flex items-center gap-1.5 text-amber-900">
+                          <span>🔒</span> Chrome HTTPS Block on 127.0.0.1
+                        </div>
+                        <p className="text-muted-foreground text-[10.5px]">
+                          Because this app is running on <strong>HTTPS</strong>, Chrome blocks connections to your local print agent (<code className="font-mono bg-muted/80 px-1 py-0.5 rounded text-[10px]">http://127.0.0.1:18890</code>) under Mixed Content / Local Network rules.
+                        </p>
+                        <div className="bg-white/80 dark:bg-slate-900/80 rounded p-2 border border-amber-300/40 text-[10.5px] space-y-0.5 font-medium text-amber-900">
+                          <div>1. Click the 🔒 or ⚙️ icon left of your URL</div>
+                          <div>2. Click <strong>Site settings</strong></div>
+                          <div>3. Set <strong>Insecure content</strong> to <strong>Allow</strong></div>
+                          <div>4. Reload this page & click Check Again</div>
+                        </div>
+                      </div>
                     )}
                   </div>
 

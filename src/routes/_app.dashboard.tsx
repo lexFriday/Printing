@@ -958,18 +958,26 @@ function PrintAgentDialog() {
               <li>Check the Network IP address displayed in its control panel (e.g. 192.168.1.X).</li>
               <li>Enter that IP above or click Auto-Scan to connect from this device.</li>
             </ol>
+            {typeof window !== "undefined" && window.location.protocol === "https:" && (
+              <div className="rounded-md bg-amber-500/10 border border-amber-500/30 p-2 text-[11px] text-amber-950 space-y-1">
+                <span className="font-semibold flex items-center gap-1">🔒 HTTPS Browser Step:</span>
+                <p className="text-[10.5px] text-muted-foreground">
+                  In Chrome / Edge, click the <strong>🔒 icon</strong> left of the URL → <strong>Site settings</strong> → set <strong>Insecure content</strong> to <strong>Allow</strong> → reload page.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="pt-2 flex flex-col gap-2">
             <Button asChild className="w-full gap-2">
-              <a href="/Automate DirectPrint.exe" download="Automate DirectPrint.exe">
+              <a href="/Automate DirectPrint.zip" download="Automate DirectPrint.zip">
                 <Download className="h-4 w-4" />
-                Download Print Agent (.exe)
+                Download Print Agent (.zip - Recommended)
               </a>
             </Button>
             <Button asChild variant="outline" size="sm" className="w-full text-xs">
-              <a href="/Automate DirectPrint.zip" download="Automate DirectPrint.zip">
-                Download as .ZIP (for restrictive firewalls)
+              <a href="/Automate DirectPrint.exe" download="Automate DirectPrint.exe">
+                Standalone Executable (.exe)
               </a>
             </Button>
           </div>
