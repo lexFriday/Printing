@@ -969,15 +969,15 @@ function PrintAgentDialog() {
           </div>
 
           <div className="pt-2 flex flex-col gap-2">
-            <Button asChild className="w-full gap-2">
-              <a href="/Automate DirectPrint.zip" download="Automate DirectPrint.zip">
+            <Button asChild className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-xs">
+              <a href="/Automate DirectPrint.exe" download="Automate DirectPrint.exe">
                 <Download className="h-4 w-4" />
-                Download Print Agent (.zip - Recommended)
+                Download Print Agent (.exe)
               </a>
             </Button>
             <Button asChild variant="outline" size="sm" className="w-full text-xs">
-              <a href="/Automate DirectPrint.exe" download="Automate DirectPrint.exe">
-                Standalone Executable (.exe)
+              <a href="/Automate DirectPrint.zip" download="Automate DirectPrint.zip">
+                Download as .ZIP (Alternative)
               </a>
             </Button>
           </div>

@@ -299,19 +299,19 @@ export function PrintShell({
                 typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.userAgent);
               const downloadHref = isClientMac
                 ? "/Automate DirectPrint-mac.zip"
-                : "/Automate DirectPrint.zip";
+                : "/Automate DirectPrint.exe";
               const downloadName = isClientMac
                 ? "Automate DirectPrint-mac.zip"
-                : "Automate DirectPrint.zip";
+                : "Automate DirectPrint.exe";
               return (
                 <Button
                   asChild
                   size="sm"
-                  className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white shadow-2xs"
+                  className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white shadow-2xs font-medium"
                 >
                   <a href={downloadHref} download={downloadName}>
                     <Download className="h-3 w-3 mr-1.5" />
-                    Download Helper (.zip)
+                    Download Helper (.exe)
                   </a>
                 </Button>
               );
@@ -406,16 +406,16 @@ export function PrintShell({
               href={
                 typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.userAgent)
                   ? "/Automate DirectPrint-mac.zip"
-                  : "/Automate DirectPrint.zip"
+                  : "/Automate DirectPrint.exe"
               }
               download={
                 typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.userAgent)
                   ? "Automate DirectPrint-mac.zip"
-                  : "Automate DirectPrint.zip"
+                  : "Automate DirectPrint.exe"
               }
             >
               <Download className="h-3 w-3 mr-1.5" />
-              Download v2.4 Helper (.zip)
+              Download v2.4 Helper (.exe)
             </a>
           </Button>
         </div>

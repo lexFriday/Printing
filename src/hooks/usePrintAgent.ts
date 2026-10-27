@@ -237,16 +237,29 @@ export function usePrintAgent() {
     calibration?: unknown;
     pdfBase64?: string;
   }) => {
-    const res = await fetch(`${getAgentUrl()}/print`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || "Failed to trigger print job");
+    try {
+      const res = await fetch(`${getAgentUrl()}/print`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to trigger print job");
+      }
+      return res.json();
+    } catch (err: unknown) {
+      if (
+        typeof window !== "undefined" &&
+        window.location.protocol === "https:" &&
+        err instanceof TypeError
+      ) {
+        throw new Error(
+          "Cannot reach Print Helper over HTTPS. Please click the 🔒 icon next to your URL → Site settings → set 'Insecure content' to Allow → reload this page.",
+        );
+      }
+      throw err;
     }
-    return res.json();
   };
 
   const isWindows = Boolean(agentInfo?.isWindows);
