@@ -111,6 +111,7 @@ function InvoiceDetails() {
   const [ewtPrintEnabled, setEwtPrintEnabled] = useState(true);
   const [ewtPrintRate, setEwtPrintRate] = useState("0.02");
   const [orNumber, setOrNumber] = useState("");
+  const [poNumber, setPoNumber] = useState<string | null>(null);
   const navigate = useNavigate();
   const canWrite = canAccountingWork(role);
 
@@ -120,7 +121,7 @@ function InvoiceDetails() {
       const [{ data, error }, { data: payments, error: paymentsError }] = await Promise.all([
         (supabase.from("invoices") as any)
           .select(
-            "*, customer:customers(*), job_order:job_orders(id, job_number, project_name), quotation:quotations(id, quote_number, project_name), lines:invoice_line_items(*)",
+            "*, customer:customers(*), job_order:job_orders(id, job_number, project_name, client_po_number), quotation:quotations(id, quote_number, project_name), lines:invoice_line_items(*)",
           )
           .eq("id", id)
           .single(),
@@ -282,12 +283,43 @@ function InvoiceDetails() {
     id: string;
     job_number: string;
     project_name: string;
+    client_po_number: string | null;
   } | null;
   const sourceQuote = i.quotation as {
     id: string;
     quote_number: string;
     project_name: string;
   } | null;
+
+  const savePoNumber = useMutation({
+    mutationFn: async (val: string) => {
+      if (!canWrite) throw new Error("You do not have permission to update this invoice.");
+      let targetJobId = jo?.id;
+      if (!targetJobId && i.quotation_id) {
+        const { data: matchedJob } = await supabase
+          .from("job_orders")
+          .select("id")
+          .eq("quotation_id", i.quotation_id)
+          .maybeSingle();
+        if (matchedJob?.id) targetJobId = matchedJob.id;
+      }
+      if (!targetJobId) {
+        toast.info("No linked Job Order found to save PO Number to.");
+        return;
+      }
+      const { error } = await supabase
+        .from("job_orders")
+        .update({ client_po_number: val.trim() || null })
+        .eq("id", targetJobId);
+      if (error) throw error;
+      await logAudit("invoice.po_number_updated", "invoice", id, { client_po_number: val.trim() || null });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["invoice", id] });
+      toast.success("PO Number saved");
+    },
+    onError: (e: Error) => toast.error(`Failed to save PO: ${e.message}`),
+  });
   const lines =
     (i.lines as Array<{
       id: string;
@@ -517,25 +549,56 @@ function InvoiceDetails() {
       </div>
 
       <Card className="p-4">
-        <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-          <div className="space-y-2">
-            <Label htmlFor="invoice-or-number">Official Receipt No.</Label>
-            <Input
-              id="invoice-or-number"
-              value={orNumber || i.official_receipt_number || ""}
-              onChange={(event) => setOrNumber(event.target.value)}
-              placeholder="Enter when collection requires an OR"
-              disabled={!canWrite}
-            />
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Client PO Number */}
+          <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="invoice-po-number">Client PO Number</Label>
+                <span className="text-[10px] font-semibold text-red-600 uppercase bg-red-50 px-1.5 py-0.5 rounded border border-red-100">
+                  SI Red Print
+                </span>
+              </div>
+              <Input
+                id="invoice-po-number"
+                value={poNumber !== null ? poNumber : (jo?.client_po_number || "")}
+                onChange={(event) => setPoNumber(event.target.value)}
+                placeholder="e.g. 3306"
+                disabled={!canWrite}
+                className="font-mono font-bold text-red-600"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!canWrite || savePoNumber.isPending}
+              onClick={() => savePoNumber.mutate(poNumber !== null ? poNumber : (jo?.client_po_number || ""))}
+            >
+              {savePoNumber.isPending ? "Saving..." : "Save PO No."}
+            </Button>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!canWrite || saveOfficialReceipt.isPending || !(orNumber || i.official_receipt_number)}
-            onClick={() => saveOfficialReceipt.mutate(orNumber || i.official_receipt_number || "")}
-          >
-            {saveOfficialReceipt.isPending ? "Saving..." : "Save OR No."}
-          </Button>
+
+          {/* Official Receipt No. */}
+          <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+            <div className="space-y-2">
+              <Label htmlFor="invoice-or-number">Official Receipt No.</Label>
+              <Input
+                id="invoice-or-number"
+                value={orNumber || i.official_receipt_number || ""}
+                onChange={(event) => setOrNumber(event.target.value)}
+                placeholder="Enter when collection requires an OR"
+                disabled={!canWrite}
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!canWrite || saveOfficialReceipt.isPending || !(orNumber || i.official_receipt_number)}
+              onClick={() => saveOfficialReceipt.mutate(orNumber || i.official_receipt_number || "")}
+            >
+              {saveOfficialReceipt.isPending ? "Saving..." : "Save OR No."}
+            </Button>
+          </div>
         </div>
       </Card>
 
@@ -641,6 +704,17 @@ function InvoiceDetails() {
             <div className="break-words text-lg font-semibold leading-snug">
               {jo ? jo.job_number : "Standalone invoice"}
             </div>
+            {jo?.project_name || sourceQuote?.project_name ? (
+              <div className="text-sm font-medium text-slate-800">
+                <span className="text-muted-foreground font-normal">Project: </span>
+                {jo?.project_name || sourceQuote?.project_name}
+              </div>
+            ) : null}
+            {jo?.client_po_number ? (
+              <div className="text-xs text-muted-foreground">
+                Client PO: <span className="font-mono font-bold text-red-600">{jo.client_po_number}</span>
+              </div>
+            ) : null}
             <div className="text-sm text-muted-foreground">
               Tax mode: {i.tax_type === "vatable" ? "VATable" : "Non-VAT"}
             </div>

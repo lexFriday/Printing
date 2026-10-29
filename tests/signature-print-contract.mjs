@@ -37,6 +37,16 @@ assert.match(
   "final quotations use a stored signature snapshot",
 );
 assert.match(
+  quotePrint,
+  /THIS QUOTATION IS VALID ONLY FOR 30 DAYS/,
+  "quotation includes 30-day validity notice",
+);
+assert.match(
+  quotePrint,
+  /text-red-600[\s\S]*THIS QUOTATION IS VALID ONLY FOR 30 DAYS/,
+  "quotation validity notice is rendered in red bold text",
+);
+assert.match(
   jobPrint,
   /prepared_by_signature_url_snapshot/,
   "Job Order prepared-by signature is rendered",

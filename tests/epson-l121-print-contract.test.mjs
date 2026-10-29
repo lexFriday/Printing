@@ -48,9 +48,13 @@ const mockInvoice = getMockInvoice();
 const drStd = generateDeliveryReceiptPdf(mockJob, LAYOUT_CONFIG, "standard");
 const drL121 = generateDeliveryReceiptPdf(mockJob, LAYOUT_CONFIG, "epson-l121");
 const drUnpriced = generateDeliveryReceiptPdf({ ...mockJob, priced: false }, LAYOUT_CONFIG, "standard");
+const drHiddenPo = generateDeliveryReceiptPdf({ ...mockJob, includePo: false }, LAYOUT_CONFIG, "standard");
+const drWithPo = generateDeliveryReceiptPdf({ ...mockJob, includePo: true }, LAYOUT_CONFIG, "standard");
 assert.ok(drStd.output("arraybuffer").byteLength > 1000, "DR standard PDF should generate");
 assert.ok(drL121.output("arraybuffer").byteLength > 1000, "DR Epson L121 PDF should generate");
 assert.ok(drUnpriced.output("arraybuffer").byteLength > 1000, "DR unpriced PDF should generate");
+assert.ok(drHiddenPo.output("arraybuffer").byteLength > 1000, "DR with hidden PO PDF should generate");
+assert.ok(drWithPo.output("arraybuffer").byteLength > 1000, "DR with included PO PDF should generate");
 assert.equal(drL121.internal.pageSize.getWidth(), Math.round(A4_WIDTH_IN * 72), "DR Epson L121 should be A4 canvas");
 
 // Bank Check

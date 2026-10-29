@@ -1,15 +1,19 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { jsPDF as JsPDF } from "jspdf";
 import type { ReactNode } from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ArrowDown, FileText, Printer } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ArrowDown, FileText, Printer, Save } from "lucide-react";
+import { toast } from "sonner";
 import { PrintShell as BasePrintShell, usePrintCalibrationContext } from "@/components/print/PrintShell";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { fmtDate } from "@/lib/format";
-import { drawPreprintedText } from "@/lib/preprintedPdf";
+import { addTemplateBackground, drawPreprintedText } from "@/lib/preprintedPdf";
+import { generateServiceInvoicePdf } from "@/lib/physicalPrintPdf";
 import { formatPrintMoney, formatPrintQty } from "@/lib/printFormat";
 import {
   DEFAULT_PRINT_CALIBRATION,
@@ -56,10 +60,17 @@ type InvoiceLine = {
 };
 
 type InvoiceJob = {
+  id?: string;
   client_po_number: string | null;
+  project_name: string | null;
 };
 
-const SERVICE_INVOICE_LINE_LIMIT = 6;
+type InvoiceQuotation = {
+  id?: string;
+  project_name: string | null;
+};
+
+const SERVICE_INVOICE_LINE_LIMIT = 12;
 const SERVICE_INVOICE_PDF_SIZE_PT = [425.2, 566.93];
 
 // Ruler Measurements for 15cm x 20cm pre-printed Service Invoice (shifted up ~1.2mm to center in boxes):
@@ -101,6 +112,8 @@ function PrintInvoicePage() {
   const { includeEwt, ewtRate } = Route.useSearch();
   const nav = useNavigate();
   const { user, loading } = useAuth();
+  const qc = useQueryClient();
+  const [poInput, setPoInput] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) nav({ to: "/auth", replace: true });
@@ -113,12 +126,44 @@ function PrintInvoicePage() {
       const { data, error } = await supabase
         .from("invoices")
         .select(
-          "*, customer:customers(*), job:job_orders(client_po_number), lines:invoice_line_items(*)",
+          "*, customer:customers(*), job:job_orders(id, client_po_number, project_name), quotation:quotations(id, project_name), lines:invoice_line_items(*)",
         )
         .eq("id", id)
         .single();
       if (error) throw error;
       return data;
+    },
+  });
+
+  const savePoMutation = useMutation({
+    mutationFn: async (newPo: string) => {
+      const trimmed = newPo.trim() || null;
+      let targetJobId = invoice.data?.job_order_id || (invoice.data?.job as InvoiceJob | null)?.id;
+      if (!targetJobId && invoice.data?.quotation_id) {
+        const { data: matchedJob } = await supabase
+          .from("job_orders")
+          .select("id")
+          .eq("quotation_id", invoice.data.quotation_id)
+          .maybeSingle();
+        if (matchedJob?.id) targetJobId = matchedJob.id;
+      }
+      if (!targetJobId) {
+        toast.info("No linked Job Order found to persist PO Number to.");
+        return;
+      }
+      const { error } = await supabase
+        .from("job_orders")
+        .update({ client_po_number: trimmed })
+        .eq("id", targetJobId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["invoice-print", id] });
+      qc.invalidateQueries({ queryKey: ["invoice", id] });
+      toast.success("PO Number saved to system");
+    },
+    onError: (err: Error) => {
+      toast.error(`Could not save PO Number: ${err.message}`);
     },
   });
 
@@ -166,6 +211,10 @@ function PrintInvoicePage() {
   const printedLines = lines.slice(0, SERVICE_INVOICE_LINE_LIMIT);
   const hiddenLineCount = lines.length - printedLines.length;
   const job = invoice.data.job as InvoiceJob | null;
+  const quotation = invoice.data.quotation as InvoiceQuotation | null;
+  const activeClientPo = poInput !== null ? poInput : (job?.client_po_number ?? "");
+  const projectName =
+    job?.project_name || quotation?.project_name || (customer as any)?.registered_name || "";
 
   const isVatable = invoice.data.tax_type === "vatable";
   const printableGrossTotal = Number(
@@ -200,7 +249,8 @@ function PrintInvoicePage() {
   const printProps = {
     customer: printCustomer,
     invoiceNumber: invoice.data.invoice_number,
-    clientPoNumber: job?.client_po_number ?? null,
+    clientPoNumber: activeClientPo || null,
+    projectName: projectName || undefined,
     invoiceDate: invoice.data.invoice_date,
     invoiceAmount: invoice.data.invoice_amount,
     vatableSales: effectiveVatableSales,
@@ -236,7 +286,62 @@ function PrintInvoicePage() {
     <PrintShell
       invoiceId={id}
       pdfFileName={`${invoice.data.invoice_number}-invoice.pdf`}
-      buildGeneratedPdf={(calibration) => buildServiceInvoicePdf({ ...printProps, calibration })}
+      buildGeneratedPdf={(calibration) =>
+        generateServiceInvoicePdf(
+          {
+            ...invoice.data,
+            ...printProps,
+            customer: printCustomer,
+            clientPoNumber: activeClientPo || null,
+            client_po_number: activeClientPo || null,
+            projectName: projectName || null,
+            project_name: projectName || null,
+            lines: printedLines,
+            invoiceAmount: invoice.data.invoice_amount,
+            vatableSales: effectiveVatableSales,
+            vatAmount: effectiveVatAmount,
+            grossTotal: printableGrossTotal,
+            amountDue: computedAmountDue,
+            ewtEnabled: activeShowEwt,
+            ewtAmount: computedEwtAmount,
+            taxType: invoice.data.tax_type ?? "non_vat",
+            includeEwt: activeShowEwt,
+            ewtRate: activeEwtRate,
+          },
+          undefined,
+          "standard",
+          "/templates/service-invoice-template.jpg",
+          calibration,
+        )
+      }
+      buildGeneratedPrintPdf={(calibration) =>
+        generateServiceInvoicePdf(
+          {
+            ...invoice.data,
+            ...printProps,
+            customer: printCustomer,
+            clientPoNumber: activeClientPo || null,
+            client_po_number: activeClientPo || null,
+            projectName: projectName || null,
+            project_name: projectName || null,
+            lines: printedLines,
+            invoiceAmount: invoice.data.invoice_amount,
+            vatableSales: effectiveVatableSales,
+            vatAmount: effectiveVatAmount,
+            grossTotal: printableGrossTotal,
+            amountDue: computedAmountDue,
+            ewtEnabled: activeShowEwt,
+            ewtAmount: computedEwtAmount,
+            taxType: invoice.data.tax_type ?? "non_vat",
+            includeEwt: activeShowEwt,
+            ewtRate: activeEwtRate,
+          },
+          undefined,
+          "standard",
+          "/templates/service-invoice-template.jpg",
+          calibration,
+        )
+      }
       directPrintJob={{
         identifier: id,
         label: invoice.data.invoice_number,
@@ -245,7 +350,10 @@ function PrintInvoicePage() {
           invoiceNumber: invoice.data.invoice_number,
           invoiceDate: invoice.data.invoice_date,
           customer: printCustomer,
-          clientPoNumber: job?.client_po_number ?? null,
+          clientPoNumber: activeClientPo || null,
+          client_po_number: activeClientPo || null,
+          projectName: projectName || null,
+          project_name: projectName || null,
           lines: printedLines,
           invoiceAmount: invoice.data.invoice_amount,
           vatableSales: effectiveVatableSales,
@@ -261,18 +369,24 @@ function PrintInvoicePage() {
         },
       }}
     >
-      {hiddenLineCount > 0 ? (
-        <Alert className="print:hidden mx-auto mb-3 max-w-[8.5in] border-amber-300 bg-amber-50 text-amber-950">
-          <AlertTitle>Some line items will not fit this official form.</AlertTitle>
-          <AlertDescription>
-            This print layout fits {SERVICE_INVOICE_LINE_LIMIT} rows. {hiddenLineCount} more line
-            item{hiddenLineCount === 1 ? "" : "s"} will not print on this page.
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
       <div className="mx-auto w-full max-w-[8.5in] space-y-5 print:hidden">
-        <ServiceInvoiceDetailsCard printProps={printProps} />
+        {hiddenLineCount > 0 ? (
+          <Alert className="border-amber-300 bg-amber-50 text-amber-950">
+            <AlertTitle>Some line items will not fit this official form.</AlertTitle>
+            <AlertDescription>
+              This print layout fits {SERVICE_INVOICE_LINE_LIMIT} rows. {hiddenLineCount} more line
+              item{hiddenLineCount === 1 ? "" : "s"} will not print on this page.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
+        <ServiceInvoiceDetailsCard
+          printProps={printProps}
+          currentPoValue={activeClientPo}
+          onPoChange={(val) => setPoInput(val)}
+          onPoSave={(val) => savePoMutation.mutate(val)}
+          isSavingPo={savePoMutation.isPending}
+        />
         <ServiceInvoiceInsertionGuide printProps={printProps} />
       </div>
 
@@ -285,8 +399,16 @@ function PrintInvoicePage() {
 
 function ServiceInvoiceDetailsCard({
   printProps,
+  currentPoValue,
+  onPoChange,
+  onPoSave,
+  isSavingPo,
 }: {
   printProps: ServiceInvoiceFormProps;
+  currentPoValue: string;
+  onPoChange: (val: string) => void;
+  onPoSave: (val: string) => void;
+  isSavingPo: boolean;
 }) {
   const isVatable = printProps.taxType === "vatable";
   const printableGrossTotal = printProps.grossTotal || printProps.invoiceAmount;
@@ -314,6 +436,43 @@ function ServiceInvoiceDetailsCard({
         </span>
       </div>
 
+      {/* CE / PO Number Input Bar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-900">CE / P.O. Number</span>
+            <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700 uppercase tracking-wide">
+              Prints in Red
+            </span>
+          </div>
+          <p className="text-[11px] text-slate-600">
+            Row 2 prints the Project Name on the left, and <span className="font-semibold text-black">CE/P.O NO:</span> with number in <span className="font-semibold text-red-600">red</span> on the right.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 sm:w-72">
+          <Input
+            value={currentPoValue}
+            onChange={(e) => onPoChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onPoSave(currentPoValue);
+            }}
+            onBlur={() => onPoSave(currentPoValue)}
+            placeholder="e.g. 3306"
+            className="h-8 font-mono font-bold text-xs text-red-600 bg-white"
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 px-3 text-xs shrink-0 font-medium"
+            disabled={isSavingPo}
+            onClick={() => onPoSave(currentPoValue)}
+          >
+            <Save className="h-3.5 w-3.5 mr-1" />
+            {isSavingPo ? "Saving..." : "Save PO"}
+          </Button>
+        </div>
+      </div>
+
       {/* Sold To & Invoice Details */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-lg bg-slate-50/70 border p-3.5 text-xs">
         <div className="space-y-1">
@@ -323,6 +482,12 @@ function ServiceInvoiceDetailsCard({
           <div className="font-bold text-slate-900 text-sm">
             {printProps.customer?.customer_name || "Customer"}
           </div>
+          {printProps.projectName ? (
+            <div className="text-[11px] font-medium text-slate-700">
+              <span className="text-muted-foreground">Project: </span>
+              {printProps.projectName}
+            </div>
+          ) : null}
           {printProps.customer?.tin_number ? (
             <div className="text-[11px] text-muted-foreground font-mono">
               TIN: {printProps.customer.tin_number}
@@ -344,7 +509,7 @@ function ServiceInvoiceDetailsCard({
           </div>
           {printProps.clientPoNumber ? (
             <div className="text-[11px] text-muted-foreground">
-              Client PO #: <span className="font-semibold font-mono text-slate-800">{printProps.clientPoNumber}</span>
+              Client PO #: <span className="font-semibold font-mono text-red-600">{printProps.clientPoNumber}</span>
             </div>
           ) : null}
           <div className="text-[11px] text-muted-foreground">
@@ -574,6 +739,7 @@ function PrintShell({
   invoiceId,
   pdfFileName,
   buildGeneratedPdf,
+  buildGeneratedPrintPdf,
   downloadExcel,
   directPrintJob,
 }: {
@@ -581,6 +747,7 @@ function PrintShell({
   invoiceId?: string;
   pdfFileName?: string;
   buildGeneratedPdf?: (calibration: PrintCalibration) => Promise<JsPDF>;
+  buildGeneratedPrintPdf?: (calibration: PrintCalibration) => Promise<JsPDF>;
   downloadExcel?: () => void;
   directPrintJob?: { identifier: string; label?: string; jobData?: unknown };
 }) {
@@ -595,8 +762,9 @@ function PrintShell({
       calibrationDocument="invoice"
       printWithGeneratedPdf
       buildGeneratedPdf={buildGeneratedPdf}
+      buildGeneratedPrintPdf={buildGeneratedPrintPdf}
       downloadExcel={downloadExcel}
-      hideDownloadPdf={true}
+      hideDownloadPdf={false}
       hideDownloadExcel={true}
       directPrintJob={directPrintJob}
     >
@@ -610,6 +778,7 @@ type ServiceInvoiceFormProps = {
   customer: Customer | null;
   invoiceNumber: string;
   clientPoNumber: string | null;
+  projectName?: string;
   invoiceDate: string;
   invoiceAmount: number;
   vatableSales: number;
@@ -629,6 +798,7 @@ async function buildServiceInvoicePdf({
   customer,
   invoiceNumber: _invoiceNumber,
   clientPoNumber,
+  projectName,
   invoiceDate,
   invoiceAmount,
   vatableSales,
@@ -645,6 +815,8 @@ async function buildServiceInvoicePdf({
   const { default: jsPDF } = await import("jspdf");
   const pdf = new jsPDF("p", "pt", SERVICE_INVOICE_PDF_SIZE_PT);
   const pageWidth = SERVICE_INVOICE_PDF_SIZE_PT[0];
+  const pageHeight = SERVICE_INVOICE_PDF_SIZE_PT[1];
+  await addTemplateBackground(pdf, "/templates/service-invoice-template.jpg", pageWidth, pageHeight);
   const isVatable = taxType === "vatable";
   const printableGrossTotal = grossTotal || invoiceAmount;
   const printableAmountDue = amountDue || printableGrossTotal;
@@ -693,18 +865,38 @@ async function buildServiceInvoicePdf({
     },
     "customerName",
   );
+  // Row 2 Left: Project Name (bounded to 5.2 cm so it never overlaps PO on the right)
   draw(
     {
-      text: customer?.customer_name,
+      text: projectName || customer?.customer_name,
       top: SI_REGISTERED_NAME_TOP_CM,
       left: 3.42,
-      width: 7.4,
-      size: 9,
-      minSize: 7,
-      fitToWidth: true,
+      width: 5.2,
+      size: 8,
+      wrap: true,
+      maxLines: 2,
     },
-    "customerName",
+    "registeredName",
   );
+  // Row 2 Right: CE/P.O NO: (label black bold, number RED bold)
+  if (clientPoNumber) {
+    draw({
+      text: "CE/P.O NO:",
+      top: SI_REGISTERED_NAME_TOP_CM,
+      left: 9.0,
+      width: 2.1,
+      size: 8.5,
+    });
+    pdf.setTextColor(220, 38, 38);
+    draw({
+      text: clientPoNumber,
+      top: SI_REGISTERED_NAME_TOP_CM,
+      left: 11.1,
+      width: 2.6,
+      size: 9.5,
+    });
+    pdf.setTextColor(0, 0, 0);
+  }
   draw(
     {
       text: customer?.tin_number,
@@ -715,14 +907,6 @@ async function buildServiceInvoicePdf({
     },
     "tin",
   );
-  draw({
-    text: clientPoNumber,
-    top: SI_TIN_TOP_CM,
-    left: 10.02,
-    width: 2.7,
-    align: "right",
-    size: 9,
-  });
   draw(
     {
       text: customer?.address,
@@ -862,6 +1046,7 @@ function ServiceInvoiceForm({
   customer,
   invoiceNumber: _invoiceNumber,
   clientPoNumber,
+  projectName,
   invoiceDate,
   invoiceAmount,
   vatableSales,
@@ -896,20 +1081,27 @@ function ServiceInvoiceForm({
       <OverlayValue top={`${SI_SOLD_TO_TOP_CM}cm`} left="3.55cm" width="7.4cm" size="9px">
         {customer?.customer_name ?? "Customer"}
       </OverlayValue>
-      <OverlayValue top={`${SI_REGISTERED_NAME_TOP_CM}cm`} left="3.55cm" width="7.4cm" size="9px">
-        {customer?.customer_name ?? "Customer"}
+
+      {/* Row 2 Left: Project Name (bounded to 5.2 cm so it doesn't collide with PO on right) */}
+      <OverlayValue top={`${SI_REGISTERED_NAME_TOP_CM}cm`} left="3.55cm" width="5.2cm" size="8px" wrap>
+        {projectName || customer?.customer_name || ""}
       </OverlayValue>
+
+      {/* Row 2 Right: CE/P.O NO: (label in black, number in RED) */}
+      {clientPoNumber ? (
+        <OverlayValue
+          top={`${SI_REGISTERED_NAME_TOP_CM}cm`}
+          left="9.0cm"
+          width="4.5cm"
+          size="9px"
+        >
+          <span className="font-bold text-black">CE/P.O NO: </span>
+          <span className="font-bold text-red-600">{clientPoNumber}</span>
+        </OverlayValue>
+      ) : null}
+
       <OverlayValue top={`${SI_TIN_TOP_CM}cm`} left="3.55cm" width="4.1cm" size="9px">
         {customer?.tin_number ?? ""}
-      </OverlayValue>
-      <OverlayValue
-        top={`${SI_TIN_TOP_CM}cm`}
-        left="10.15cm"
-        width="2.7cm"
-        align="right"
-        size="9px"
-      >
-        {clientPoNumber ?? ""}
       </OverlayValue>
       <OverlayValue top={`${SI_ADDRESS_TOP_CM}cm`} left="3.55cm" width="9.9cm" size="7.5px" wrap>
         {customer?.address ?? ""}
@@ -926,7 +1118,6 @@ function ServiceInvoiceForm({
                 left="1.16cm"
                 width="6.85cm"
                 size={isMultiLine ? "6.0px" : "9px"}
-                lineHeight={isMultiLine ? "1.1" : undefined}
                 wrap
               >
                 {line.description}

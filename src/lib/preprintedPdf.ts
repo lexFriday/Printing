@@ -7,6 +7,34 @@ type TextAlign = "left" | "right" | "center";
 const CM_TO_PT = 28.3464566929;
 const IN_TO_PT = 72;
 
+const templateCache = new Map<string, string>();
+
+export async function addTemplateBackground(
+  pdf: JsPDF,
+  templateUrl: string,
+  width: number,
+  height: number,
+) {
+  try {
+    let dataUrl = templateCache.get(templateUrl);
+    if (!dataUrl) {
+      const res = await fetch(templateUrl);
+      if (!res.ok) return;
+      const blob = await res.blob();
+      dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      templateCache.set(templateUrl, dataUrl);
+    }
+    pdf.addImage(dataUrl, "JPEG", 0, 0, width, height);
+  } catch (err) {
+    console.warn("Could not load template background:", err);
+  }
+}
+
 export function fitPreprintedFontSize(
   text: string,
   maxWidth: number,

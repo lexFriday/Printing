@@ -155,7 +155,7 @@ export function PrintShell({
       : buildGeneratedPdf;
     if (generatedPdfBuilder) {
       const pdf = await generatedPdfBuilder(calibration);
-      if (pdf) applyPdfCalibration(pdf, calibration);
+      if (pdf && !(pdf as any).__calibrated) applyPdfCalibration(pdf, calibration);
       return pdf;
     }
 
@@ -378,46 +378,66 @@ export function PrintShell({
         </div>
       ) : null}
 
-      {/* Update notification when running print agent is older than v2.4 */}
+      {/* Update notification when running print agent is older than v2.5 */}
       {directPrintJob &&
       printAgent.isRunning &&
       printAgent.version &&
-      !printAgent.version.includes("2.4") ? (
-        <div className="print-agent-alert mx-auto mb-3.5 flex max-w-[8.5in] flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-blue-200/90 bg-blue-50/95 px-4 py-2.5 shadow-xs text-xs text-blue-950 backdrop-blur-xs">
+      !printAgent.version.includes("2.5") ? (
+        <div className="print-agent-alert mx-auto mb-3.5 flex max-w-[8.5in] flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-amber-200/90 bg-amber-50/95 px-4 py-2.5 shadow-xs text-xs text-amber-950 backdrop-blur-xs">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-200/80 text-blue-800">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-200/80 text-amber-800">
               <Download className="h-4 w-4" />
             </div>
             <div>
-              <p className="font-semibold text-blue-950">
-                Print Helper Update Available (Running v{printAgent.version} → Latest v2.4)
+              <p className="font-semibold text-amber-950">
+                Action Required: Running Older Print Helper (v{printAgent.version} → Latest v2.5)
               </p>
-              <p className="text-[11px] text-blue-800/85">
-                Close your currently running print helper and download the new version to apply the latest text wrapping &amp; layout alignment.
+              <p className="text-[11px] text-amber-800/85">
+                Your computer is running the previous helper which adds asterisks (*) and older alignment. Click <strong>Quit Old Helper</strong>, then launch the new <strong>v2.5</strong> helper.
               </p>
             </div>
           </div>
-          <Button
-            asChild
-            size="sm"
-            className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white shadow-2xs shrink-0"
-          >
-            <a
-              href={
-                typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.userAgent)
-                  ? "/Automate DirectPrint-mac.zip"
-                  : "/Automate DirectPrint.exe"
-              }
-              download={
-                typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.userAgent)
-                  ? "Automate DirectPrint-mac.zip"
-                  : "Automate DirectPrint.exe"
-              }
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs border-amber-300 text-amber-900 hover:bg-amber-100"
+              onClick={async () => {
+                try {
+                  await fetch(`http://${printAgent.host || "127.0.0.1"}:18890/api/shutdown`, {
+                    method: "POST",
+                  });
+                  toast.success("Previous print helper has been closed!");
+                  setTimeout(() => printAgent.checkStatus(), 1000);
+                } catch {
+                  toast.error("Could not close helper automatically. Please exit it in your taskbar / Task Manager.");
+                }
+              }}
             >
-              <Download className="h-3 w-3 mr-1.5" />
-              Download v2.4 Helper (.exe)
-            </a>
-          </Button>
+              Quit Old Helper
+            </Button>
+            <Button
+              asChild
+              size="sm"
+              className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white shadow-2xs font-medium shrink-0"
+            >
+              <a
+                href={
+                  typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.userAgent)
+                    ? "/Automate DirectPrint-mac.zip"
+                    : "/Automate DirectPrint.exe"
+                }
+                download={
+                  typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.userAgent)
+                    ? "Automate DirectPrint-mac.zip"
+                    : "Automate DirectPrint.exe"
+                }
+              >
+                <Download className="h-3 w-3 mr-1.5" />
+                Download v2.5 Helper (.exe)
+              </a>
+            </Button>
+          </div>
         </div>
       ) : null}
 
@@ -721,9 +741,7 @@ export function PrintShell({
                   if (!printAgent.isRunning) {
                     toast.error(
                       "Direct Print Agent is offline. Please launch Automate DirectPrint.exe on your computer or connect to its IP.",
-                      {
-                        duration: 5000,
-                      },
+                      { duration: 5000 },
                     );
                     return;
                   }
@@ -736,6 +754,13 @@ export function PrintShell({
                   if (printAgent.supported === false) {
                     toast.error(
                       `Direct Print is not supported on ${printAgent.platform || "this OS"}.`,
+                    );
+                    return;
+                  }
+                  if (printAgent.version && !printAgent.version.includes("2.5")) {
+                    toast.error(
+                      `Your computer is running older print helper v${printAgent.version} (which adds asterisks). Click 'Quit Old Helper' in the top banner and open the new v2.5 helper!`,
+                      { duration: 8000 },
                     );
                     return;
                   }
@@ -805,7 +830,7 @@ export function PrintShell({
       </div>
 
       <div
-        className="print-calibration-frame mx-auto max-w-[8.5in] flex justify-center"
+        className="print-calibration-frame mx-auto max-w-[8.5in] flex flex-col items-center w-full"
         style={
           {
             "--print-calibration-x": calibration.page.xMm,

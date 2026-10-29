@@ -342,11 +342,16 @@ function PrintQuotePage() {
           </table>
         </section>
 
-        <section className="mt-12 grid grid-cols-2 gap-10 text-[12px]">
+        <section className="mt-8 grid grid-cols-2 gap-10 text-[12px]">
           <div>
-            <h2 className="font-bold">Terms:</h2>
-            <div className="mt-1 whitespace-pre-wrap uppercase">
-              {quote.data.terms || defaultQuoteTerms}
+            <div className="quote-validity-notice font-bold text-red-600 uppercase tracking-wide">
+              THIS QUOTATION IS VALID ONLY FOR 30 DAYS
+            </div>
+            <div className="mt-2">
+              <h2 className="font-bold">Terms:</h2>
+              <div className="mt-1 whitespace-pre-wrap uppercase">
+                {quote.data.terms || defaultQuoteTerms}
+              </div>
             </div>
           </div>
           {quote.data.remarks ? (
@@ -778,6 +783,10 @@ async function drawQuotePdf(pdf: JsPDF, data: QuotePdfData, includeReferenceImag
   y += 16;
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(9);
+  pdf.setTextColor(220, 38, 38);
+  pdf.text("THIS QUOTATION IS VALID ONLY FOR 30 DAYS", margin, y);
+  y += 14;
+  pdf.setTextColor(0, 0, 0);
   pdf.text("TERMS:", margin, y);
   y += 13;
   pdf.setFont("helvetica", "normal");
@@ -1025,6 +1034,10 @@ function forcePrintCaptureColors(root: HTMLElement) {
   root.querySelectorAll<HTMLElement>(".quotation-table th").forEach((element) => {
     element.style.background = "#000000";
     element.style.color = "#ffffff";
+  });
+
+  root.querySelectorAll<HTMLElement>(".quote-validity-notice").forEach((element) => {
+    element.style.color = "#dc2626";
   });
 }
 

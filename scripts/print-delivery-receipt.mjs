@@ -119,15 +119,15 @@ export const SERVICE_INVOICE_LAYOUT_CONFIG = {
   header: {
     date: { topIn: 1.5625, rightIn: 0.55 }, // 1 9/16", right aligned inside date box
     soldTo: { topIn: 1.75, leftIn: 1.38, maxWidthIn: 4.1 }, // 1 3/4"
-    registeredName: { topIn: 2.0, leftIn: 1.38, maxWidthIn: 4.1 }, // 2"
-    tin: { topIn: 2.1875, leftIn: 1.38, maxWidthIn: 2.2 }, // 2 3/16"
-    poNo: { topIn: 2.1875, leftIn: 4.0, maxWidthIn: 1.35 },
-    businessAddress: { topIn: 2.4375, leftIn: 1.38, maxWidthIn: 3.9 }, // 2 7/16", bounded within 5.30" to prevent outbound overflow
+    registeredName: { topIn: 2.02, leftIn: 1.38, maxWidthIn: 2.05 }, // Row 2 Left: Project Name field (bounded to 2.05" so it doesn't overlap PO)
+    poNo: { topIn: 2.02, leftIn: 3.55, maxWidthIn: 2.0 }, // Row 2 Right: CE/P.O NO: label at 3.55", red number at 4.38"
+    tin: { topIn: 2.24, leftIn: 1.38, maxWidthIn: 2.2 }, // 2 1/4"
+    businessAddress: { topIn: 2.47, leftIn: 1.38, maxWidthIn: 3.9 }, // 2 15/32", bounded within 5.30" to prevent outbound overflow
   },
   items: {
     startTopIn: 2.88, // Shifted up ~1.4mm (from 2.9375") so items sit centered inside the row box
     rowStepIn: Number(process.env.SI_ROW_STEP_IN || 0.2), // uniform ~5.08mm per row (5 lines per inch)
-    maxRows: 6,
+    maxRows: 12,
     columns: {
       description: { leftIn: 0.42, maxWidthIn: 2.70 }, // Bounded strictly within Description column (~6.85 cm)
       qty: { leftIn: 3.55, align: "right" },
@@ -216,36 +216,29 @@ export const CHECK_LAYOUT_CONFIG = {
     leftIn: Number(process.env.CHECK_OFFSET_LEFT || 0.0),
   },
   fields: {
-    checkNo: {
-      topIn: 1.9855,
-      leftIn: 4.05,
-      maxWidthIn: 1.45,
-      fontSize: 12,
-      align: "right",
-    },
     date: {
-      topIn: 0.62, // Centered vertically inside the date boxes (between upper tick marks and lower rule)
+      topIn: 0.58, // Centered vertically inside preprinted date boxes
       fontSize: 11,
       boxLefts: [
-        5.69, 5.91, // MM boxes (M1, M2 - kept)
-        6.18, 6.40, // DD boxes (D1, D2 - shifted left)
-        6.66, 6.85, 7.04, 7.23, // YYYY boxes (Y1, Y2, Y3, Y4 - shifted left)
+        5.945, 6.141, // MM boxes
+        6.426, 6.621, // DD boxes
+        6.906, 7.102, 7.301, 7.492, // YYYY boxes
       ],
-      monthLeftIn: 5.69,
-      dayLeftIn: 6.18,
-      yearLeftIn: 6.66,
+      monthLeftIn: 5.945,
+      dayLeftIn: 6.426,
+      yearLeftIn: 6.906,
     },
     payee: {
       topIn: 0.95, // Onto PAY TO THE ORDER OF line
       leftIn: 1.30,
-      maxWidthIn: 4.5,
+      maxWidthIn: 4.00, // Scales font down if long (no wrap, clear of ₱)
       fontSize: 11,
       fontStyle: "bold",
     },
     amount: {
-      topIn: 0.95, // Aligned with ₱ baseline
-      leftIn: 5.75,
-      maxWidthIn: 1.7,
+      topIn: 0.95, // Aligned with amount line
+      leftIn: 6.00, // Safely inside amount line after ₱
+      maxWidthIn: 1.55,
       fontSize: 11.5,
       fontStyle: "bold",
     },
@@ -564,6 +557,18 @@ function fmtMoney(num) {
   });
 }
 
+function addNodeTemplateBackground(doc, templateFileName, xPt, yPt, widthPt, heightPt) {
+  try {
+    const templatePath = path.join(process.cwd(), "public", "templates", templateFileName);
+    if (fs.existsSync(templatePath)) {
+      const bg = fs.readFileSync(templatePath).toString("base64");
+      doc.addImage("data:image/jpeg;base64," + bg, "JPEG", xPt, yPt, widthPt, heightPt);
+    }
+  } catch (err) {
+    console.warn(`[TemplateBG] Could not attach ${templateFileName}:`, err.message);
+  }
+}
+
 // --- 5. GENERATE OVERLAY PDF ---
 export function generateDeliveryReceiptPdf(data, config = LAYOUT_CONFIG, printerModel = "standard") {
   const isL121 = printerModel === "epson-l121" || config?.printerModel === "epson-l121";
@@ -581,6 +586,15 @@ export function generateDeliveryReceiptPdf(data, config = LAYOUT_CONFIG, printer
   const xShiftIn = isL121
     ? (config.trayOffsetLeftIn ?? EPSON_L121_TRAY_OFFSETS.deliveryReceipt ?? 0)
     : 0;
+
+  addNodeTemplateBackground(
+    doc,
+    "delivery-receipt-template.jpg",
+    xShiftIn * 72,
+    0,
+    config.paper.widthIn * 72,
+    config.paper.heightIn * 72,
+  );
 
   // Helper to place text by inch coordinates
   const drawText = (
@@ -645,14 +659,17 @@ export function generateDeliveryReceiptPdf(data, config = LAYOUT_CONFIG, printer
     }
   }
 
-  drawText(
-    data.client_po_number || quote.quote_number,
-    config.header.poNo.topIn,
-    config.header.poNo.leftIn,
-    {
-      size: 9,
-    },
-  );
+  const showPo = data.includePo !== false && data.showPo !== false && !data.hidePo;
+  if (showPo) {
+    drawText(
+      data.client_po_number || quote.quote_number,
+      config.header.poNo.topIn,
+      config.header.poNo.leftIn,
+      {
+        size: 9,
+      },
+    );
+  }
   drawText(
     customer.business_style || "",
     config.header.businessStyle.topIn,
@@ -773,6 +790,15 @@ export function generateServiceInvoicePdf(data, config = SERVICE_INVOICE_LAYOUT_
     ? (config.trayOffsetLeftIn ?? EPSON_L121_TRAY_OFFSETS.serviceInvoice ?? 0)
     : 0;
 
+  addNodeTemplateBackground(
+    doc,
+    "service-invoice-template.jpg",
+    xShiftIn * 72,
+    0,
+    config.paper.widthIn * 72,
+    config.paper.heightIn * 72,
+  );
+
   const drawText = (
     text,
     topIn,
@@ -798,22 +824,60 @@ export function generateServiceInvoicePdf(data, config = SERVICE_INVOICE_LAYOUT_
   const dateLeftIn = config.paper.widthIn - (config.header.date.rightIn || 0.49);
   drawText(dateStr, config.header.date.topIn, dateLeftIn, { align: "right", size: 9 });
 
-  // Customer Name / Sold To & Registered Name
+  // Customer Name / Sold To
   const custName = customer.customer_name || customer.customerName || "";
   drawText(custName, config.header.soldTo.topIn, config.header.soldTo.leftIn, {
     size: 9,
     fontStyle: "bold",
   });
-  drawText(custName, config.header.registeredName.topIn, config.header.registeredName.leftIn, {
-    size: 9,
-    fontStyle: "bold",
-  });
 
-  // TIN & PO No.
+  // Row 2 Left (Registered Name pre-printed row): Used for Project Name, with 2-line wrap bounded to 2.05"
+  const projectName =
+    data.project_name ||
+    data.projectName ||
+    data.job?.project_name ||
+    data.quotation?.project_name ||
+    customer.registered_name ||
+    "";
+  if (projectName) {
+    const maxProjWidthPt = (config.header.registeredName.maxWidthIn || 2.05) * 72;
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    const projLines = doc.splitTextToSize(String(projectName), maxProjWidthPt) || [];
+    if (projLines.length <= 1) {
+      drawText(projectName, config.header.registeredName.topIn, config.header.registeredName.leftIn, {
+        size: 8,
+        fontStyle: "bold",
+      });
+    } else {
+      drawText(projLines[0], config.header.registeredName.topIn - 0.045, config.header.registeredName.leftIn, {
+        size: 7.2,
+        fontStyle: "bold",
+      });
+      drawText(projLines[1], config.header.registeredName.topIn + 0.045, config.header.registeredName.leftIn, {
+        size: 7.2,
+        fontStyle: "bold",
+      });
+    }
+  }
+
+  // Row 2 Right: CE/P.O NO: (label black bold, number RED bold)
+  const po = String(data.client_po_number || data.clientPoNumber || "").trim();
+  if (po) {
+    drawText("CE/P.O NO:", config.header.poNo.topIn, config.header.poNo.leftIn, { size: 8.5, fontStyle: "bold" });
+    const finalTopPt = (config.header.poNo.topIn + config.globalOffset.topIn) * 72;
+    const poNumLeftIn = 4.38;
+    const finalLeftPt = (poNumLeftIn + config.globalOffset.leftIn + xShiftIn) * 72;
+    doc.setFontSize(9.5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(220, 38, 38);
+    doc.text(po, finalLeftPt, finalTopPt, { align: "left", baseline: "alphabetic" });
+    doc.setTextColor(0, 0, 0);
+  }
+
+  // TIN
   const tin = customer.tin_number || customer.tinNumber || "";
   drawText(tin, config.header.tin.topIn, config.header.tin.leftIn, { size: 9 });
-  const po = data.client_po_number || data.clientPoNumber || "";
-  drawText(po, config.header.poNo.topIn, config.header.poNo.leftIn, { size: 9, align: "right" });
 
   // Business Address with wrapping
   const addr = customer.address || "";
@@ -1001,6 +1065,12 @@ export function generateCheckVoucherPdf(data, config = CHECK_VOUCHER_LAYOUT_CONF
 
   const carriageWidthIn = isL121 ? 8.2677 : config.paper.widthIn;
 
+  if (isL121) {
+    addNodeTemplateBackground(doc, "check-voucher-template.jpg", 0, 0, (210 / 25.4) * 72, (148 / 25.4) * 72);
+  } else {
+    addNodeTemplateBackground(doc, "check-voucher-template.jpg", 0, 0, config.paper.widthIn * 72, config.paper.heightIn * 72);
+  }
+
   const drawVoucherText = (
     text,
     topIn,
@@ -1111,12 +1181,12 @@ export function generateCheckPdf(data, config = CHECK_LAYOUT_CONFIG, printerMode
     doc.setFont("helvetica", fontStyle);
     doc.setTextColor(0, 0, 0);
 
-    // Auto-scale font size if text exceeds maxWidth
+    // Auto-scale font size if text exceeds maxWidth (do not wrap)
     let currentSize = size;
     if (maxWidthIn > 0) {
       doc.setFontSize(currentSize);
       const maxPt = maxWidthIn * 72;
-      while (doc.getTextWidth(String(text)) > maxPt && currentSize > 7) {
+      while (doc.getTextWidth(String(text)) > maxPt && currentSize > 5.5) {
         currentSize -= 0.5;
         doc.setFontSize(currentSize);
       }
@@ -1143,6 +1213,19 @@ export function generateCheckPdf(data, config = CHECK_LAYOUT_CONFIG, printerMode
     }
   };
 
+  if (data.testMode || config.showTemplate || data.includeTemplate) {
+    if (isL121) {
+      addNodeTemplateBackground(
+        doc,
+        "check-template.jpg",
+        (8.2677 - (config.paper.checkHeightIn || 8.0)) * 72,
+        0,
+        8.0 * 72,
+        3.0 * 72,
+      );
+    }
+  }
+
   const f = config.fields;
 
   // 1. Date: Render each digit into its individual pre-printed box [M1][M2] - [D1][D2] - [Y1][Y2][Y3][Y4]
@@ -1162,7 +1245,7 @@ export function generateCheckPdf(data, config = CHECK_LAYOUT_CONFIG, printerMode
   const mStr = String(month || "").padStart(2, "0");
   const dStr = String(day || "").padStart(2, "0");
   const yStr = String(year || "").padStart(4, "2026");
-  const boxLefts = f.date.boxLefts || [5.69, 5.91, 6.18, 6.40, 6.66, 6.85, 7.04, 7.23];
+  const boxLefts = f.date?.boxLefts || [5.945, 6.141, 6.426, 6.621, 6.906, 7.102, 7.301, 7.492];
   const dateDigits = [mStr[0], mStr[1], dStr[0], dStr[1], yStr[0], yStr[1], yStr[2], yStr[3]];
 
   dateDigits.forEach((digit, idx) => {
@@ -1174,48 +1257,38 @@ export function generateCheckPdf(data, config = CHECK_LAYOUT_CONFIG, printerMode
     }
   });
 
-  // 2. Payee (with safety asterisks)
-  const rawPayee = (data.payee || data.supplier_name || "").trim();
-  const payeeText = rawPayee ? `** ${rawPayee.toUpperCase()} **` : "";
+  // 2. Payee (clean text, strictly stripped of any asterisks, no wrap, auto-scaled to fit field)
+  const rawPayee = String(data.payee || data.supplier_name || "").replace(/\*/g, "").trim();
+  const payeeText = rawPayee ? rawPayee.toUpperCase() : "";
   drawCheckText(payeeText, f.payee.topIn, f.payee.leftIn, {
     size: f.payee.fontSize,
     fontStyle: f.payee.fontStyle,
     maxWidthIn: f.payee.maxWidthIn,
   });
 
-  // 3. Amount in numbers (with safety asterisks)
-  const rawAmt = data.amount ?? "";
+  // 3. Amount in numbers (clean currency, strictly stripped of any asterisks)
+  const rawAmt = typeof data.amount === "string" ? data.amount.replace(/\*/g, "").trim() : data.amount ?? "";
   const numAmt =
     typeof rawAmt === "number" ? rawAmt : parseFloat(String(rawAmt).replace(/[^0-9.-]/g, ""));
   const formattedAmt = isNaN(numAmt) ? "" : fmtMoney(numAmt);
-  const amtText = formattedAmt ? `*** ${formattedAmt} ***` : "";
+  const amtText = String(formattedAmt || "").replace(/\*/g, "").trim();
   drawCheckText(amtText, f.amount.topIn, f.amount.leftIn, {
     size: f.amount.fontSize,
     fontStyle: f.amount.fontStyle,
     maxWidthIn: f.amount.maxWidthIn,
   });
 
-  // 4. Amount in words (with safety asterisks)
-  let words = (data.amountWords || "").trim();
+  // 4. Amount in words (clean text, strictly stripped of any asterisks)
+  let words = String(data.amountWords || "").replace(/\*/g, "").trim();
   if (!words && !isNaN(numAmt) && numAmt > 0) {
     words = amountToPesoWords(numAmt);
   }
-  const wordsText = words ? `** ${words.toUpperCase()} **` : "";
+  const wordsText = String(words ? words.toUpperCase() : "").replace(/\*/g, "").trim();
   drawCheckText(wordsText, f.amountWords.topIn, f.amountWords.leftIn, {
     size: f.amountWords.fontSize,
     fontStyle: f.amountWords.fontStyle,
     maxWidthIn: f.amountWords.maxWidthIn,
   });
-
-  // 5. Check number (if present)
-  const rawCheckNo = (data.checkNo || data.check_number || "").trim();
-  if (rawCheckNo && rawCheckNo !== "-") {
-    drawCheckText(rawCheckNo, f.checkNo?.topIn ?? 1.9855, f.checkNo?.leftIn ?? 4.05, {
-      size: f.checkNo?.fontSize ?? 12,
-      align: "left",
-      maxWidthIn: f.checkNo?.maxWidthIn ?? 1.45,
-    });
-  }
 
   return doc;
 }
@@ -2371,7 +2444,7 @@ function startPrintDaemon(defaultPrinter) {
         JSON.stringify({
           status: "running",
           port: DAEMON_PORT,
-          version: "2.4-si-wrap",
+          version: "2.5-clean-check",
           platform: process.platform,
           supported: isWin || isMac,
           spoolerEngine,
@@ -2543,6 +2616,12 @@ function startPrintDaemon(defaultPrinter) {
             payload.jobData?.printerModel ||
             (/l121|l120/i.test(targetPrinter || "") ? "epson-l121" : "standard");
           const isL121 = printerModel === "epson-l121";
+          const isTestMode = Boolean(
+            payload.testMode ||
+            payload.jobData?.testMode ||
+            process.env.TEST_PRINT ||
+            process.env.NODE_ENV === "test"
+          );
 
           const isServiceInvoice =
             payload.documentType === "service-invoice" ||
@@ -2632,11 +2711,15 @@ function startPrintDaemon(defaultPrinter) {
             const cvSettings = isL121
               ? "paper=A4,paperkind=9,noscale"
               : "paper=A5,paperkind=11,noscale,center";
-            printPdf(
-              outputPath,
-              targetPrinter,
-              payload.settings || payload.printSettings || cvSettings,
-            );
+            if (!isTestMode) {
+              printPdf(
+                outputPath,
+                targetPrinter,
+                payload.settings || payload.printSettings || cvSettings,
+              );
+            } else {
+              console.log(`[TEST MODE] Check voucher PDF saved with template background: ${outputPath}`);
+            }
             recordJob({
               documentType: `Check Voucher (${isL121 ? "Epson L121" : "Center"})`,
               documentNo: cvData.documentNo || cvData.id || "Voucher",
@@ -2698,11 +2781,15 @@ function startPrintDaemon(defaultPrinter) {
             const siSettings = isL121
               ? "paper=A4,paperkind=9,noscale"
               : "paper=A5,paperkind=11,noscale,center";
-            printPdf(
-              outputPath,
-              targetPrinter,
-              payload.settings || payload.printSettings || siSettings,
-            );
+            if (!isTestMode) {
+              printPdf(
+                outputPath,
+                targetPrinter,
+                payload.settings || payload.printSettings || siSettings,
+              );
+            } else {
+              console.log(`[TEST MODE] Service invoice PDF saved with template background: ${outputPath}`);
+            }
             recordJob({
               documentType: `Service Invoice (${isL121 ? "Epson L121" : "Center"})`,
               documentNo: invoiceData.invoice_number || invoiceData.invoiceNumber || "Invoice",
@@ -2751,11 +2838,15 @@ function startPrintDaemon(defaultPrinter) {
           const drSettings = isL121
             ? "paper=A4,paperkind=9,noscale"
             : "paper=A5,paperkind=11,noscale,center";
-          printPdf(
-            outputPath,
-            targetPrinter,
-            payload.settings || payload.printSettings || drSettings,
-          );
+          if (!isTestMode) {
+            printPdf(
+              outputPath,
+              targetPrinter,
+              payload.settings || payload.printSettings || drSettings,
+            );
+          } else {
+            console.log(`[TEST MODE] Delivery receipt PDF saved with template background: ${outputPath}`);
+          }
           const isPriced =
             jobData.priced !== false && String(jobData.priced).toLowerCase() !== "false";
           recordJob({

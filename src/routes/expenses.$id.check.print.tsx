@@ -5,8 +5,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { PrintShell, usePrintCalibrationContext } from "@/components/print/PrintShell";
 import { amountToPesoWords } from "@/lib/amountWords";
-import { drawPreprintedText } from "@/lib/preprintedPdf";
 import { formatPrintMoney } from "@/lib/printFormat";
+import { generateCheckPdf, CHECK_LAYOUT_CONFIG } from "@/lib/physicalPrintPdf";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -31,21 +31,8 @@ const CHECK_PRINT_PROFILE = {
   centerOnPage: false,
 } as const;
 
-const CHECK_FIELDS = {
-  checkNo: { top: 1.9855, left: 4.05, width: 1.45, size: 12, align: "right" as const },
-  payee: { top: 0.95, left: 1.30, width: 4.5, size: 11 },
-  amount: { top: 0.95, left: 5.75, width: 1.7, size: 11.5, align: "left" as const },
-  amountWords: { top: 1.22, left: 1.20, width: 5.5, size: 10.5 },
-  dateMonth: { top: 0.62, left: 5.69, width: 0.38, size: 11 },
-  dateDay: { top: 0.62, left: 6.18, width: 0.38, size: 11 },
-  dateYear: { top: 0.62, left: 6.66, width: 0.75, size: 11 },
-} as const;
+const CHECK_FIELDS = CHECK_LAYOUT_CONFIG.fields;
 
-const CHECK_DATE_BOX_LEFTS = [
-  5.69, 5.91, // MM (M1, M2 - kept)
-  6.18, 6.40, // DD (D1, D2 - shifted left)
-  6.66, 6.85, 7.04, 7.23, // YYYY (Y1, Y2, Y3, Y4 - shifted left)
-] as const;
 
 type CheckPrintProps = {
   checkNo: string;
@@ -164,7 +151,7 @@ function CheckPrintPage() {
       printProfile={CHECK_PRINT_PROFILE}
       printWithGeneratedPdf
       buildGeneratedPdf={(calibration) => buildCheckPdf({ ...printProps, calibration })}
-      hideDownloadPdf={true}
+      hideDownloadPdf={false}
       hideDownloadExcel={true}
       calibrationDocument="check"
       directPrintJob={{
@@ -174,9 +161,9 @@ function CheckPrintPage() {
           documentType: "check",
           id,
           checkNo: printProps.checkNo,
-          payee: printProps.payee,
-          amount: printProps.amount,
-          amountWords: printProps.amountWords,
+          payee: String(printProps.payee || "").replace(/\*/g, "").trim(),
+          amount: String(printProps.amount || "").replace(/\*/g, "").trim(),
+          amountWords: String(printProps.amountWords || "").replace(/\*/g, "").trim(),
           dateMonth: printProps.dateMonth,
           dateDay: printProps.dateDay,
           dateYear: printProps.dateYear,
@@ -292,7 +279,7 @@ function CheckDetailsCard({
             Pesos In Words
           </span>
           <div className="font-mono text-[11px] font-semibold uppercase text-slate-800 bg-slate-50 border rounded-lg p-3 leading-relaxed">
-            *** {printProps.amountWords} ***
+            {printProps.amountWords}
           </div>
         </div>
       </div>
@@ -351,7 +338,7 @@ function PrinterInsertionGuide({ printProps }: { printProps?: CheckPrintProps })
                 </div>
                 <div className="flex justify-between items-center text-[7.5px] text-slate-700">
                   <span className="truncate max-w-[170px]">
-                    PESOS: {printProps?.amountWords ? `*** ${printProps.amountWords} ***` : "*** TEN THOUSAND PESOS ONLY ***"}
+                    PESOS: {printProps?.amountWords || "TEN THOUSAND PESOS ONLY"}
                   </span>
                   <span className="font-bold text-emerald-800">
                     ₱{printProps?.amount || "10,000.00"}
@@ -460,7 +447,7 @@ function PrinterInsertionGuide({ printProps }: { printProps?: CheckPrintProps })
                     PAY: {printProps?.payee || "ARLECHINO CONCEPTS"}
                   </div>
                   <div className="text-[7.5px] text-slate-600 truncate border-b border-blue-100 pb-0.5">
-                    PESOS: {printProps?.amountWords ? `*** ${printProps.amountWords} ***` : "*** TEN THOUSAND PESOS ONLY ***"}
+                    PESOS: {printProps?.amountWords ? printProps.amountWords.replace(/\*/g, "") : "TEN THOUSAND PESOS ONLY"}
                   </div>
                   <div className="flex justify-between items-center text-[7.5px] font-bold text-emerald-800 pt-0.5">
                     <span>BDO TIMOG</span>
@@ -563,46 +550,19 @@ async function buildCheckPdf({
   dateYear,
   calibration,
 }: CheckPrintProps & { calibration?: PrintCalibration }) {
-  const { default: jsPDF } = await import("jspdf");
-  const pdf = new jsPDF("l", "pt", [...CHECK_PAGE_SIZE_PT]);
-
-  const draw = (
-    args: Omit<Parameters<typeof drawPreprintedText>[1], "pageWidth" | "unit">,
-    field?: string,
-  ) =>
-    drawPreprintedText(pdf, {
-      ...args,
-      offset: field
-        ? resolveFieldOffset(calibration ?? DEFAULT_PRINT_CALIBRATION, field)
-        : (calibration ?? DEFAULT_PRINT_CALIBRATION).page,
-      pageWidth: CHECK_PAGE_SIZE_PT[0],
-      unit: "in",
-    });
-
-  draw({ text: checkNo, ...CHECK_FIELDS.checkNo, fitToWidth: true, minSize: 9 }, "checkNo");
-  draw({ text: payee, ...CHECK_FIELDS.payee, fitToWidth: true, minSize: 8 }, "payee");
-  draw({ text: amount, ...CHECK_FIELDS.amount, fitToWidth: true, minSize: 10 }, "amount");
-  draw(
-    { text: amountWords, ...CHECK_FIELDS.amountWords, fitToWidth: true, minSize: 8 },
-    "amountWords",
+  return generateCheckPdf(
+    {
+      checkNo,
+      payee,
+      amount,
+      amountWords,
+      dateMonth,
+      dateDay,
+      dateYear,
+    },
+    CHECK_LAYOUT_CONFIG,
+    "standard",
+    "/templates/check-template.jpg",
+    calibration,
   );
-  // Render individual date digits centered into their preprinted boxes
-  const mDigits = dateMonth.padStart(2, "0");
-  const dDigits = dateDay.padStart(2, "0");
-  const yDigits = dateYear.padStart(4, "2026");
-
-  // M1, M2
-  draw({ text: mDigits[0], top: CHECK_FIELDS.dateMonth.top, left: CHECK_DATE_BOX_LEFTS[0], width: 0.18, size: 11, align: "center" }, "dateMonth");
-  draw({ text: mDigits[1], top: CHECK_FIELDS.dateMonth.top, left: CHECK_DATE_BOX_LEFTS[1], width: 0.18, size: 11, align: "center" }, "dateMonth");
-
-  // D1, D2
-  draw({ text: dDigits[0], top: CHECK_FIELDS.dateDay.top, left: CHECK_DATE_BOX_LEFTS[2], width: 0.18, size: 11, align: "center" }, "dateDay");
-  draw({ text: dDigits[1], top: CHECK_FIELDS.dateDay.top, left: CHECK_DATE_BOX_LEFTS[3], width: 0.18, size: 11, align: "center" }, "dateDay");
-
-  // Y1, Y2, Y3, Y4
-  draw({ text: yDigits[0], top: CHECK_FIELDS.dateYear.top, left: CHECK_DATE_BOX_LEFTS[4], width: 0.18, size: 11, align: "center" }, "dateYear");
-  draw({ text: yDigits[1], top: CHECK_FIELDS.dateYear.top, left: CHECK_DATE_BOX_LEFTS[5], width: 0.18, size: 11, align: "center" }, "dateYear");
-  draw({ text: yDigits[2], top: CHECK_FIELDS.dateYear.top, left: CHECK_DATE_BOX_LEFTS[6], width: 0.18, size: 11, align: "center" }, "dateYear");
-  draw({ text: yDigits[3], top: CHECK_FIELDS.dateYear.top, left: CHECK_DATE_BOX_LEFTS[7], width: 0.18, size: 11, align: "center" }, "dateYear");
-  return pdf;
 }

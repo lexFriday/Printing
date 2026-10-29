@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { PrintShell, usePrintCalibrationContext } from "@/components/print/PrintShell";
 import { fmtDate } from "@/lib/format";
-import { drawPreprintedText } from "@/lib/preprintedPdf";
+import { addTemplateBackground, drawPreprintedText } from "@/lib/preprintedPdf";
+import { generateCheckVoucherPdf } from "@/lib/physicalPrintPdf";
 import { formatPrintMoney } from "@/lib/printFormat";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -188,22 +189,30 @@ function CheckVoucherPrintPage() {
       printWithGeneratedPdf
       calibrationDocument="check-voucher"
       buildGeneratedPdf={(sharedCalibration) =>
-        buildCheckVoucherPdf(printProps, {
-          originYIn: CHECK_VOUCHER_PRINT_PAGE_ORIGIN_Y_IN,
-          calibration: { xMm: sharedCalibration.page.xMm, yMm: sharedCalibration.page.yMm },
-          fieldOffsets: sharedCalibration.fields,
-          alignmentTest,
-        })
+        generateCheckVoucherPdf(
+          {
+            ...e,
+            ...printProps,
+          },
+          undefined,
+          "standard",
+          "/templates/check-voucher-template.jpg",
+          sharedCalibration,
+        )
       }
       buildGeneratedPrintPdf={(sharedCalibration) =>
-        buildCheckVoucherPdf(printProps, {
-          originYIn: CHECK_VOUCHER_PRINT_PAGE_ORIGIN_Y_IN,
-          calibration: { xMm: sharedCalibration.page.xMm, yMm: sharedCalibration.page.yMm },
-          fieldOffsets: sharedCalibration.fields,
-          alignmentTest,
-        })
+        generateCheckVoucherPdf(
+          {
+            ...e,
+            ...printProps,
+          },
+          undefined,
+          "standard",
+          "/templates/check-voucher-template.jpg",
+          sharedCalibration,
+        )
       }
-      hideDownloadPdf={true}
+      hideDownloadPdf={false}
       hideDownloadExcel={true}
       directPrintJob={{
         identifier: id,
@@ -581,6 +590,12 @@ async function buildCheckVoucherPdf(
 ) {
   const { default: jsPDF } = await import("jspdf");
   const pdf = new jsPDF("l", "pt", [...CHECK_VOUCHER_CALIBRATION_PAGE_SIZE_PT]);
+  await addTemplateBackground(
+    pdf,
+    "/templates/check-voucher-template.jpg",
+    CHECK_VOUCHER_CALIBRATION_PAGE_SIZE_PT[0],
+    CHECK_VOUCHER_CALIBRATION_PAGE_SIZE_PT[1],
+  );
   const draw = (args: Omit<Parameters<typeof drawPreprintedText>[1], "pageWidth" | "unit">) =>
     drawPreprintedText(pdf, {
       ...args,

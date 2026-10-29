@@ -690,6 +690,12 @@ export async function buildQuoteWorkbook(data: QuoteExcelExportPayload): Promise
   nextRow++;
 
   // 7. Terms Section
+  ws.mergeCells(`A${nextRow}:F${nextRow}`);
+  const validityCell = ws.getCell(`A${nextRow}`);
+  validityCell.value = "THIS QUOTATION IS VALID ONLY FOR 30 DAYS";
+  validityCell.font = { name: "Arial", size: 10, bold: true, color: { argb: "FFDC2626" } };
+  nextRow++;
+
   const defaultTerms = "FULL PAYMENT DUE WITHIN 30 DAYS AFTER INVOICE.";
   const termsText = (data.terms || defaultTerms).toUpperCase();
   ws.getCell(`A${nextRow}`).value = "TERMS:";

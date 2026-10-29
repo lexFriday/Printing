@@ -1,15 +1,17 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ArrowDown, FileText, Printer } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Switch } from "@/components/ui/switch";
 import { PrintShell, usePrintCalibrationContext } from "@/components/print/PrintShell";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { computeInclusiveVat } from "@/lib/calc";
 import { fmtDate } from "@/lib/format";
-import { drawPreprintedText, fitPreprintedFontSize } from "@/lib/preprintedPdf";
+import { addTemplateBackground, drawPreprintedText, fitPreprintedFontSize } from "@/lib/preprintedPdf";
+import { generateDeliveryReceiptPdf } from "@/lib/physicalPrintPdf";
 import { formatPrintMoney, formatPrintQty } from "@/lib/printFormat";
 import {
   DEFAULT_PRINT_CALIBRATION,
@@ -20,12 +22,19 @@ import { COMPANY_PROFILE } from "@/lib/brand";
 
 export const Route = createFileRoute("/jobs/$id/delivery-receipt/print")({
   head: () => ({ meta: [{ title: `Print delivery receipt - ${COMPANY_PROFILE.name}` }] }),
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { priced: boolean; includePo?: boolean } => ({
     priced:
       search.priced === true ||
       search.priced === "true" ||
       search.prices === true ||
       search.prices === "true",
+    includePo:
+      search.includePo !== false &&
+      search.includePo !== "false" &&
+      search.hidePo !== true &&
+      search.hidePo !== "true",
   }),
   errorComponent: ({ error }) => (
     <PrintShell backTo="/jobs" backLabel="Back to jobs">
@@ -102,7 +111,8 @@ function formatDeliveryReceiptTerms(terms: string | null) {
 
 function DeliveryReceiptPrintPage() {
   const { id } = Route.useParams();
-  const { priced } = Route.useSearch();
+  const { priced, includePo: searchIncludePo } = Route.useSearch();
+  const [includePo, setIncludePo] = useState<boolean>(searchIncludePo !== false);
   const nav = useNavigate();
   const { user, loading } = useAuth();
 
@@ -182,6 +192,7 @@ function DeliveryReceiptPrintPage() {
     terms: formatDeliveryReceiptTerms(quotation?.terms ?? null),
     drNumber: job.data.dr_number,
     clientPoNumber: job.data.client_po_number,
+    includePo,
     priced,
     lines: displayLines,
     lineSubtotal,
@@ -199,17 +210,54 @@ function DeliveryReceiptPrintPage() {
       pdfPageSize={DELIVERY_RECEIPT_PDF_SIZE_PT}
       pageCssSize="5.5in 8.5in"
       printWithGeneratedPdf
-      buildGeneratedPdf={(calibration) => buildDeliveryReceiptPdf({ ...printProps, calibration })}
+      buildGeneratedPdf={(calibration) =>
+        generateDeliveryReceiptPdf(
+          {
+            ...job.data,
+            ...printProps,
+            customer: printCustomer,
+            quotation,
+            lines: displayLines,
+            priced,
+            includePo,
+          },
+          undefined,
+          "standard",
+          "/templates/delivery-receipt-template.jpg",
+          calibration,
+        )
+      }
+      buildGeneratedPrintPdf={(calibration) =>
+        generateDeliveryReceiptPdf(
+          {
+            ...job.data,
+            ...printProps,
+            customer: printCustomer,
+            quotation,
+            lines: displayLines,
+            priced,
+            includePo,
+          },
+          undefined,
+          "standard",
+          "/templates/delivery-receipt-template.jpg",
+          calibration,
+        )
+      }
       directPrintJob={{
         identifier: id,
         label: job.data.job_number,
-        jobData: { ...job.data, customer: printCustomer, quotation, lines: displayLines, priced },
+        jobData: { ...job.data, customer: printCustomer, quotation, lines: displayLines, priced, includePo },
       }}
-      hideDownloadPdf={true}
+      hideDownloadPdf={false}
       hideDownloadExcel={true}
     >
       <div className="mx-auto w-full max-w-[8.5in] space-y-5 print:hidden">
-        <DeliveryReceiptDetailsCard printProps={printProps} />
+        <DeliveryReceiptDetailsCard
+          printProps={printProps}
+          includePo={includePo}
+          onToggleIncludePo={setIncludePo}
+        />
         <DeliveryReceiptInsertionGuide printProps={printProps} />
       </div>
 
@@ -224,9 +272,15 @@ function DeliveryReceiptPrintPage() {
 
 function DeliveryReceiptDetailsCard({
   printProps,
+  includePo,
+  onToggleIncludePo,
 }: {
   printProps: DeliveryReceiptFormProps;
+  includePo: boolean;
+  onToggleIncludePo: (val: boolean) => void;
 }) {
+  const poValueToPrint = printProps.clientPoNumber || printProps.quoteNumber;
+
   return (
     <div className="rounded-xl border bg-white p-5 shadow-xs space-y-4">
       {/* Header */}
@@ -242,6 +296,40 @@ function DeliveryReceiptDetailsCard({
           <span className="font-mono text-xs text-muted-foreground px-2 py-1 rounded-md bg-slate-50 border">
             Job #{printProps.jobNumber}
           </span>
+        </div>
+      </div>
+
+      {/* P.O. Number Print Toggle */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-3">
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-900">Include P.O. Number on DR</span>
+            <span
+              className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide border ${
+                includePo
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : "bg-slate-100 text-slate-600 border-slate-200"
+              }`}
+            >
+              {includePo ? "Will Print" : "Hidden"}
+            </span>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            {includePo
+              ? `Prints "${poValueToPrint || "—"}" on the pre-printed P.O. No. field.`
+              : "Leaves the pre-printed P.O. No. field blank on the delivery receipt."}
+          </p>
+        </div>
+        <div className="flex items-center gap-2.5 self-end sm:self-auto">
+          <span className="text-xs font-medium text-slate-600">
+            {includePo ? "Include P.O." : "Hide P.O."}
+          </span>
+          <Switch
+            id="toggle-dr-po"
+            checked={includePo}
+            onCheckedChange={onToggleIncludePo}
+            aria-label="Toggle P.O. Number print visibility"
+          />
         </div>
       </div>
 
@@ -281,12 +369,36 @@ function DeliveryReceiptDetailsCard({
           </div>
           {printProps.clientPoNumber ? (
             <div className="text-[11px] text-muted-foreground">
-              Client PO #: <span className="font-semibold font-mono text-slate-800">{printProps.clientPoNumber}</span>
+              Client PO #:{" "}
+              <span
+                className={`font-semibold font-mono ${
+                  includePo ? "text-slate-800" : "line-through text-slate-400"
+                }`}
+              >
+                {printProps.clientPoNumber}
+              </span>
+              {!includePo ? (
+                <span className="ml-1 text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                  Hidden in print
+                </span>
+              ) : null}
             </div>
           ) : null}
           {printProps.quoteNumber ? (
             <div className="text-[11px] text-muted-foreground">
-              Quote #: <span className="font-semibold font-mono text-slate-800">{printProps.quoteNumber}</span>
+              Quote #:{" "}
+              <span
+                className={`font-semibold font-mono ${
+                  includePo || printProps.clientPoNumber ? "text-slate-800" : "line-through text-slate-400"
+                }`}
+              >
+                {printProps.quoteNumber}
+              </span>
+              {!includePo && !printProps.clientPoNumber ? (
+                <span className="ml-1 text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                  Hidden in print
+                </span>
+              ) : null}
             </div>
           ) : null}
           {printProps.terms ? (
@@ -527,6 +639,7 @@ type DeliveryReceiptFormProps = {
   terms: string | null;
   drNumber: string | null;
   clientPoNumber: string | null;
+  includePo?: boolean;
   priced: boolean;
   lines: JobLine[];
   lineSubtotal: number;
@@ -542,6 +655,7 @@ async function buildDeliveryReceiptPdf({
   terms,
   drNumber,
   clientPoNumber,
+  includePo = true,
   priced,
   lines,
   lineSubtotal,
@@ -552,6 +666,8 @@ async function buildDeliveryReceiptPdf({
   const { default: jsPDF } = await import("jspdf");
   const pdf = new jsPDF("p", "pt", DELIVERY_RECEIPT_PDF_SIZE_PT);
   const pageWidth = DELIVERY_RECEIPT_PDF_SIZE_PT[0];
+  const pageHeight = DELIVERY_RECEIPT_PDF_SIZE_PT[1];
+  await addTemplateBackground(pdf, "/templates/delivery-receipt-template.jpg", pageWidth, pageHeight);
   const draw = (
     args: Omit<Parameters<typeof drawPreprintedText>[1], "pageWidth" | "unit">,
     field?: string,
@@ -614,16 +730,18 @@ async function buildDeliveryReceiptPdf({
     },
     "address",
   );
-  draw(
-    {
-      text: quoteNumber || clientPoNumber,
-      top: drTopValue(DR_PO_TOP_IN + DR_HEADER_SHIFT_IN + DR_PO_DELTA_IN),
-      left: 3.52 + DR_PO_RIGHT_DELTA_IN,
-      width: 1.1,
-      align: "right",
-    },
-    "poNumber",
-  );
+  if (includePo) {
+    draw(
+      {
+        text: quoteNumber || clientPoNumber,
+        top: drTopValue(DR_PO_TOP_IN + DR_HEADER_SHIFT_IN + DR_PO_DELTA_IN),
+        left: 3.52 + DR_PO_RIGHT_DELTA_IN,
+        width: 1.1,
+        align: "right",
+      },
+      "poNumber",
+    );
+  }
 
   lines.forEach((line, index) => {
     const top = drLineTopValue(3.52 + index * 0.48);
@@ -732,6 +850,7 @@ function DeliveryReceiptForm({
   terms,
   drNumber,
   clientPoNumber,
+  includePo = true,
   priced,
   lines,
   lineSubtotal,
@@ -779,14 +898,16 @@ function DeliveryReceiptForm({
       >
         {customer?.address ?? ""}
       </OverlayValue>
-      <OverlayValue
-        top={drTop(DR_PO_TOP_IN + DR_HEADER_SHIFT_IN + DR_PO_DELTA_IN)}
-        left={`${3.52 + DR_PO_RIGHT_DELTA_IN}in`}
-        width="1.1in"
-        align="right"
-      >
-        {quoteNumber || clientPoNumber || ""}
-      </OverlayValue>
+      {includePo ? (
+        <OverlayValue
+          top={drTop(DR_PO_TOP_IN + DR_HEADER_SHIFT_IN + DR_PO_DELTA_IN)}
+          left={`${3.52 + DR_PO_RIGHT_DELTA_IN}in`}
+          width="1.1in"
+          align="right"
+        >
+          {quoteNumber || clientPoNumber || ""}
+        </OverlayValue>
+      ) : null}
 
       {lines.map((line, index) => (
         <div key={line.id}>

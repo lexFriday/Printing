@@ -143,7 +143,19 @@ assert.ok(images.length >= 2, `Expected embedded images (logo, photo, signature)
 assert.equal(ws.getCell(`E${rowItem1}`).numFmt, "#,##0.00", "Unit price must be formatted as #,##0.00");
 assert.equal(ws.getCell(`F${rowItem1}`).numFmt, "#,##0.00", "Total price must be formatted as #,##0.00");
 
-// 8. Verify Write Buffer
+// 8. Verify Validity Notice in Red Font
+let validityRow = -1;
+ws.eachRow((row, rowNumber) => {
+  if (row.getCell(1).value === "THIS QUOTATION IS VALID ONLY FOR 30 DAYS") {
+    validityRow = rowNumber;
+  }
+});
+assert.ok(validityRow > 0, "Validity notice row must exist");
+const valCell = ws.getCell(`A${validityRow}`);
+assert.equal(valCell.font?.bold, true, "Validity text must be bold");
+assert.equal(valCell.font?.color?.argb, "FFDC2626", "Validity text color must be red #dc2626");
+
+// 9. Verify Write Buffer
 const smallBuffer = await wbSmall.xlsx.writeBuffer();
 assert.ok(smallBuffer.byteLength > 20000, "Excel binary with images should be > 20KB");
 console.log(`  ✓ Small quote Excel verified (${smallBuffer.byteLength} bytes, ${images.length} embedded images).`);
