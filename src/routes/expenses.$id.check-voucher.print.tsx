@@ -212,7 +212,7 @@ function CheckVoucherPrintPage() {
           sharedCalibration,
         )
       }
-      hideDownloadPdf={false}
+      hideDownloadPdf={true}
       hideDownloadExcel={true}
       directPrintJob={{
         identifier: id,

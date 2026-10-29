@@ -764,7 +764,7 @@ function PrintShell({
       buildGeneratedPdf={buildGeneratedPdf}
       buildGeneratedPrintPdf={buildGeneratedPrintPdf}
       downloadExcel={downloadExcel}
-      hideDownloadPdf={false}
+      hideDownloadPdf={true}
       hideDownloadExcel={true}
       directPrintJob={directPrintJob}
     >

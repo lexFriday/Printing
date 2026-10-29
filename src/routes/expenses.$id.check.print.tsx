@@ -151,7 +151,7 @@ function CheckPrintPage() {
       printProfile={CHECK_PRINT_PROFILE}
       printWithGeneratedPdf
       buildGeneratedPdf={(calibration) => buildCheckPdf({ ...printProps, calibration })}
-      hideDownloadPdf={false}
+      hideDownloadPdf={true}
       hideDownloadExcel={true}
       calibrationDocument="check"
       directPrintJob={{

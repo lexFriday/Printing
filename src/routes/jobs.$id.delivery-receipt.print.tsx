@@ -249,7 +249,7 @@ function DeliveryReceiptPrintPage() {
         label: job.data.job_number,
         jobData: { ...job.data, customer: printCustomer, quotation, lines: displayLines, priced, includePo },
       }}
-      hideDownloadPdf={false}
+      hideDownloadPdf={true}
       hideDownloadExcel={true}
     >
       <div className="mx-auto w-full max-w-[8.5in] space-y-5 print:hidden">
