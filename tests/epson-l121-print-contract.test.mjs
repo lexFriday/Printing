@@ -87,10 +87,14 @@ assert.equal(LAYOUT_CONFIG.items.columns.description.leftIn, 1.2, "DR Line item 
 assert.equal(CHECK_LAYOUT_CONFIG.fields.payee.topIn, 0.95, "Check payee relative top untouched");
 assert.equal(CHECK_LAYOUT_CONFIG.fields.payee.leftIn, 1.30, "Check payee relative left untouched");
 assert.equal(SERVICE_INVOICE_LAYOUT_CONFIG.header.soldTo.leftIn, 1.38, "SI Customer relative coordinate untouched");
-assert.equal(CHECK_VOUCHER_LAYOUT_CONFIG.fields.payee.leftIn, 1.78, "CV Payee relative coordinate untouched");
+assert.equal(CHECK_VOUCHER_LAYOUT_CONFIG.fields.payee.leftIn, 1.15, "CV Payee relative coordinate updated to 1.15in");
+assert.equal(CHECK_VOUCHER_LAYOUT_CONFIG.fields.particulars.leftIn, 0.50, "CV Particulars relative coordinate updated to 0.50in");
 assert.equal(CHECK_VOUCHER_LAYOUT_CONFIG.fields.columns.checkDate.header.topIn, 3.55, "CV Check Date header top coordinate");
+assert.equal(CHECK_VOUCHER_LAYOUT_CONFIG.fields.columns.checkDate.header.leftIn, 1.20, "CV Check Date header left coordinate");
 assert.equal(CHECK_VOUCHER_LAYOUT_CONFIG.fields.columns.documentNo.header.topIn, 3.55, "CV Document No header top coordinate");
+assert.equal(CHECK_VOUCHER_LAYOUT_CONFIG.fields.columns.documentNo.header.leftIn, 2.90, "CV Document No header left coordinate");
 assert.equal(CHECK_VOUCHER_LAYOUT_CONFIG.fields.columns.checkNo.header.topIn, 3.55, "CV Check No header top coordinate");
+assert.equal(CHECK_VOUCHER_LAYOUT_CONFIG.fields.columns.checkNo.header.leftIn, 4.60, "CV Check No header left coordinate");
 assert.equal(CHECK_VOUCHER_LAYOUT_CONFIG.fields.amount.row1.topIn, 3.10, "CV Amount row 1 top coordinate");
 assert.equal(CHECK_VOUCHER_LAYOUT_CONFIG.fields.amount.line1.topIn, 3.16, "CV Amount single underline top coordinate");
 assert.equal(CHECK_VOUCHER_LAYOUT_CONFIG.fields.amount.row2.topIn, 3.32, "CV Amount total row top coordinate");

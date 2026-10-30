@@ -489,20 +489,20 @@ export const CV_LAYOUT_CONFIG = {
   },
   fields: {
     date: { topIn: 1.45, leftIn: 6.85, maxWidthIn: 1.85, fontSize: 10, fontStyle: "bold" as const, align: "center" as const },
-    payee: { topIn: 1.85, leftIn: 1.78, maxWidthIn: 3.95, fontSize: 10.5, fontStyle: "bold" as const, align: "left" as const },
-    particulars: { topIn: 2.92, leftIn: 0.95, maxWidthIn: 5.45, fontSize: 9.5, fontStyle: "bold" as const, align: "left" as const },
+    payee: { topIn: 1.85, leftIn: 1.15, maxWidthIn: 3.95, fontSize: 10.5, fontStyle: "bold" as const, align: "left" as const },
+    particulars: { topIn: 2.92, leftIn: 0.50, maxWidthIn: 5.10, fontSize: 9.5, fontStyle: "bold" as const, align: "left" as const },
     columns: {
       checkDate: {
-        header: { topIn: 3.55, leftIn: 1.60, fontSize: 9, fontStyle: "bold" as const, align: "center" as const },
-        value: { topIn: 3.75, leftIn: 1.60, fontSize: 9.5, fontStyle: "bold" as const, align: "center" as const },
+        header: { topIn: 3.55, leftIn: 1.20, fontSize: 9, fontStyle: "bold" as const, align: "center" as const },
+        value: { topIn: 3.75, leftIn: 1.20, fontSize: 9.5, fontStyle: "bold" as const, align: "center" as const },
       },
       documentNo: {
-        header: { topIn: 3.55, leftIn: 3.65, fontSize: 9, fontStyle: "bold" as const, align: "center" as const },
-        value: { topIn: 3.75, leftIn: 3.65, fontSize: 10, fontStyle: "bold" as const, align: "center" as const },
+        header: { topIn: 3.55, leftIn: 2.90, fontSize: 9, fontStyle: "bold" as const, align: "center" as const },
+        value: { topIn: 3.75, leftIn: 2.90, fontSize: 10, fontStyle: "bold" as const, align: "center" as const },
       },
       checkNo: {
-        header: { topIn: 3.55, leftIn: 5.75, fontSize: 9, fontStyle: "bold" as const, align: "center" as const },
-        value: { topIn: 3.75, leftIn: 5.75, fontSize: 10, fontStyle: "bold" as const, align: "center" as const },
+        header: { topIn: 3.55, leftIn: 4.60, fontSize: 9, fontStyle: "bold" as const, align: "center" as const },
+        value: { topIn: 3.75, leftIn: 4.60, fontSize: 10, fontStyle: "bold" as const, align: "center" as const },
       },
     },
     amount: {
@@ -557,15 +557,27 @@ export async function generateCheckVoucherPdf(
     text: unknown,
     topIn: number,
     leftIn: number,
-    { align = "left" as "left" | "right" | "center", size = 9.5, fontStyle = "normal" as "normal" | "bold" } = {},
+    { align = "left" as "left" | "right" | "center", size = 9.5, fontStyle = "normal" as "normal" | "bold", maxWidthIn = 0 } = {},
   ) => {
     if (!text && text !== 0) return;
     const finalTopPt = (topIn + effectiveConfig.globalOffset.topIn) * 72;
     const finalLeftPt = (leftIn + effectiveConfig.globalOffset.leftIn) * 72;
 
-    doc.setFontSize(size);
     doc.setFont("helvetica", fontStyle);
     doc.setTextColor(0, 0, 0);
+
+    let currentSize = size;
+    if (maxWidthIn > 0) {
+      doc.setFontSize(currentSize);
+      const maxPt = maxWidthIn * 72;
+      while (doc.getTextWidth(String(text)) > maxPt && currentSize > 5.5) {
+        currentSize -= 0.5;
+        doc.setFontSize(currentSize);
+      }
+    } else {
+      doc.setFontSize(currentSize);
+    }
+
     doc.text(String(text), finalLeftPt, finalTopPt, { align, baseline: "alphabetic" });
   };
 
@@ -582,11 +594,21 @@ export async function generateCheckVoucherPdf(
   const dateStr = fmtDate(data.check_date || data.paid_at || data.expense_date || data.date || new Date());
   drawText(dateStr, f.date.topIn, f.date.leftIn, { size: f.date.fontSize, fontStyle: f.date.fontStyle, align: f.date.align });
 
-  const payee = data.supplier_name || data.payee || "";
-  drawText(payee, f.payee.topIn, f.payee.leftIn, { size: f.payee.fontSize, fontStyle: f.payee.fontStyle, align: f.payee.align });
+  const payee = String(data.supplier_name || data.payee || "").replace(/\*/g, "").trim();
+  drawText(payee, f.payee.topIn, f.payee.leftIn, {
+    size: f.payee.fontSize,
+    fontStyle: f.payee.fontStyle,
+    align: f.payee.align,
+    maxWidthIn: f.payee.maxWidthIn,
+  });
 
   const particulars = data.description || data.particulars || "";
-  drawText(particulars, f.particulars.topIn, f.particulars.leftIn, { size: f.particulars.fontSize, fontStyle: f.particulars.fontStyle, align: f.particulars.align });
+  drawText(particulars, f.particulars.topIn, f.particulars.leftIn, {
+    size: f.particulars.fontSize,
+    fontStyle: f.particulars.fontStyle,
+    align: f.particulars.align,
+    maxWidthIn: f.particulars.maxWidthIn,
+  });
 
   // Columns inside Particulars
   const checkDateVal = data.check_date ? fmtDate(data.check_date) : data.checkDate || "";

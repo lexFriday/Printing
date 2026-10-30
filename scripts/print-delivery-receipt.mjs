@@ -174,20 +174,20 @@ export const CHECK_VOUCHER_LAYOUT_CONFIG = {
   },
   fields: {
     date: { topIn: 1.45, leftIn: 6.85, maxWidthIn: 1.85, fontSize: 10, fontStyle: "bold", align: "center" },
-    payee: { topIn: 1.85, leftIn: 1.78, maxWidthIn: 3.95, fontSize: 10.5, fontStyle: "bold", align: "left" },
-    particulars: { topIn: 2.92, leftIn: 0.95, maxWidthIn: 5.45, fontSize: 9.5, fontStyle: "bold", align: "left" },
+    payee: { topIn: 1.85, leftIn: 1.15, maxWidthIn: 3.95, fontSize: 10.5, fontStyle: "bold", align: "left" },
+    particulars: { topIn: 2.92, leftIn: 0.50, maxWidthIn: 5.10, fontSize: 9.5, fontStyle: "bold", align: "left" },
     columns: {
       checkDate: {
-        header: { topIn: 3.55, leftIn: 1.60, fontSize: 9, fontStyle: "bold", align: "center" },
-        value: { topIn: 3.75, leftIn: 1.60, fontSize: 9.5, fontStyle: "bold", align: "center" },
+        header: { topIn: 3.55, leftIn: 1.20, fontSize: 9, fontStyle: "bold", align: "center" },
+        value: { topIn: 3.75, leftIn: 1.20, fontSize: 9.5, fontStyle: "bold", align: "center" },
       },
       documentNo: {
-        header: { topIn: 3.55, leftIn: 3.65, fontSize: 9, fontStyle: "bold", align: "center" },
-        value: { topIn: 3.75, leftIn: 3.65, fontSize: 10, fontStyle: "bold", align: "center" },
+        header: { topIn: 3.55, leftIn: 2.90, fontSize: 9, fontStyle: "bold", align: "center" },
+        value: { topIn: 3.75, leftIn: 2.90, fontSize: 10, fontStyle: "bold", align: "center" },
       },
       checkNo: {
-        header: { topIn: 3.55, leftIn: 5.75, fontSize: 9, fontStyle: "bold", align: "center" },
-        value: { topIn: 3.75, leftIn: 5.75, fontSize: 10, fontStyle: "bold", align: "center" },
+        header: { topIn: 3.55, leftIn: 4.60, fontSize: 9, fontStyle: "bold", align: "center" },
+        value: { topIn: 3.75, leftIn: 4.60, fontSize: 10, fontStyle: "bold", align: "center" },
       },
     },
     amount: {
@@ -1155,7 +1155,8 @@ export function generateCheckVoucherPdf(data, config = CHECK_VOUCHER_LAYOUT_CONF
     align: f.date.align || "center",
   });
 
-  const payee = data.payee || data.supplier_name || "-";
+  const rawPayee = data.payee || data.supplier_name || "-";
+  const payee = String(rawPayee).replace(/\*/g, "").trim();
   drawVoucherText(payee, f.payee.topIn, f.payee.leftIn, {
     size: f.payee.fontSize,
     fontStyle: f.payee.fontStyle || "bold",
