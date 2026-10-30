@@ -173,29 +173,33 @@ export const CHECK_VOUCHER_LAYOUT_CONFIG = {
     leftIn: Number(process.env.CV_OFFSET_LEFT || 0.0),
   },
   fields: {
-    date: { topIn: 1.4375, leftIn: 6.25, maxWidthIn: 1.85, fontSize: 10, align: "left" }, // 1 7/16"
-    payee: {
-      topIn: 1.85,
-      leftIn: 1.78,
-      maxWidthIn: 3.95,
-      fontSize: 10.5,
-      fontStyle: "bold",
-      align: "left",
-    }, // shifted up ~3.8mm to center in bracket
-    particulars: { topIn: 2.95, leftIn: 0.82, maxWidthIn: 5.45, fontSize: 9.5, align: "left" }, // shifted up ~5.7mm
+    date: { topIn: 1.45, leftIn: 6.85, maxWidthIn: 1.85, fontSize: 10, fontStyle: "bold", align: "center" },
+    payee: { topIn: 1.85, leftIn: 1.78, maxWidthIn: 3.95, fontSize: 10.5, fontStyle: "bold", align: "left" },
+    particulars: { topIn: 2.92, leftIn: 0.95, maxWidthIn: 5.45, fontSize: 9.5, fontStyle: "bold", align: "left" },
+    columns: {
+      checkDate: {
+        header: { topIn: 3.55, leftIn: 1.60, fontSize: 9, fontStyle: "bold", align: "center" },
+        value: { topIn: 3.75, leftIn: 1.60, fontSize: 9.5, fontStyle: "bold", align: "center" },
+      },
+      documentNo: {
+        header: { topIn: 3.55, leftIn: 3.65, fontSize: 9, fontStyle: "bold", align: "center" },
+        value: { topIn: 3.75, leftIn: 3.65, fontSize: 10, fontStyle: "bold", align: "center" },
+      },
+      checkNo: {
+        header: { topIn: 3.55, leftIn: 5.75, fontSize: 9, fontStyle: "bold", align: "center" },
+        value: { topIn: 3.75, leftIn: 5.75, fontSize: 10, fontStyle: "bold", align: "center" },
+      },
+    },
     amount: {
-      topIn: 2.95,
-      leftIn: 6.6,
-      maxWidthIn: 1.4,
-      fontSize: 10,
-      fontStyle: "bold",
-      align: "left",
-    }, // shifted up ~5.7mm (aligned with particulars)
+      row1: { topIn: 3.10, leftIn: 7.45, fontSize: 10, fontStyle: "bold", align: "right" },
+      line1: { topIn: 3.16, left1In: 6.55, left2In: 7.45 },
+      row2: { topIn: 3.32, leftIn: 7.45, fontSize: 10, fontStyle: "bold", align: "right" },
+      doubleUnderline: { topIn1: 3.37, topIn2: 3.40, left1In: 6.55, left2In: 7.45 },
+    },
     signatures: {
-      topIn: 5.75, // 5 3/4"
-      preparedBy: { leftIn: 0.92, maxWidthIn: 1.8, fontSize: 9.5, align: "left" },
-      certifiedCorrectBy: { leftIn: 3.62, maxWidthIn: 1.95, fontSize: 9.5, align: "center" },
-      receivedBy: { leftIn: 6.42, maxWidthIn: 1.45, fontSize: 9.5, align: "center" },
+      preparedBy: { topIn: 5.62, leftIn: 1.33, fontSize: 10, fontStyle: "bold", align: "center" },
+      certifiedCorrectBy: { topIn: 5.62, leftIn: 4.60, fontSize: 10, fontStyle: "bold", align: "center" },
+      receivedBy: { topIn: 5.62, leftIn: 7.20, fontSize: 10, fontStyle: "bold", align: "center" },
     },
   },
 };
@@ -494,6 +498,7 @@ export function getMockExpense() {
     documentType: "check-voucher",
     id: "EXP-2026-MOCK",
     date: fmtDate(new Date()),
+    checkDate: fmtDate(new Date()),
     payee: "ACME SUPPLIES & INDUSTRIAL TRADING",
     particulars: "Full payment for materials and pre-press consumable items",
     amount: "16,500.00",
@@ -533,6 +538,7 @@ async function fetchExpense(identifier) {
     documentType: "check-voucher",
     id: data.id,
     date: fmtDate(data.check_date || data.paid_at || data.expense_date),
+    checkDate: fmtDate(data.check_date || data.paid_at || data.expense_date),
     payee: data.supplier_name || "-",
     particulars,
     amount: fmtMoney(data.amount),
@@ -1065,40 +1071,77 @@ export function generateCheckVoucherPdf(data, config = CHECK_VOUCHER_LAYOUT_CONF
 
   const carriageWidthIn = isL121 ? 8.2677 : config.paper.widthIn;
 
-  if (isL121) {
-    addNodeTemplateBackground(doc, "check-voucher-template.jpg", 0, 0, (210 / 25.4) * 72, (148 / 25.4) * 72);
-  } else {
-    addNodeTemplateBackground(doc, "check-voucher-template.jpg", 0, 0, config.paper.widthIn * 72, config.paper.heightIn * 72);
+  if (data.testMode || config.showTemplate || data.includeTemplate) {
+    if (isL121) {
+      addNodeTemplateBackground(doc, "check-voucher-template.jpg", 0, 0, (210 / 25.4) * 72, (148 / 25.4) * 72);
+    } else {
+      addNodeTemplateBackground(doc, "check-voucher-template.jpg", 0, 0, config.paper.widthIn * 72, config.paper.heightIn * 72);
+    }
   }
 
   const drawVoucherText = (
     text,
     topIn,
     leftIn,
-    { align = "left", size = 9.5, fontStyle = "normal" } = {},
+    { align = "left", size = 9.5, fontStyle = "normal", maxWidthIn = 0 } = {},
   ) => {
     if (!text && text !== 0) return;
     const finalTopIn = topIn + config.globalOffset.topIn;
     const finalLeftIn = leftIn + config.globalOffset.leftIn;
 
-    doc.setFontSize(size);
     doc.setFont("helvetica", fontStyle);
     doc.setTextColor(0, 0, 0);
 
+    let currentSize = size;
+    if (maxWidthIn > 0) {
+      doc.setFontSize(currentSize);
+      const maxPt = maxWidthIn * 72;
+      while (doc.getTextWidth(String(text)) > maxPt && currentSize > 5.5) {
+        currentSize -= 0.5;
+        doc.setFontSize(currentSize);
+      }
+    } else {
+      doc.setFontSize(currentSize);
+    }
+
+    const textStr = String(text);
+    const textWidthPt = doc.getTextWidth(textStr);
+
     if (isL121) {
       // Epson L120/L121: Top-Feed (A5 Landscape 210mm wide on A4 carriage, top edge enters first)
-      // Carriage is 210mm wide, voucher is 210mm wide (spans full carriage width, offset = 0)
       const xpPt = finalLeftIn * 72;
       const ypPt = finalTopIn * 72;
-      doc.text(String(text), xpPt, ypPt, { align, angle: 0, baseline: "alphabetic" });
+      doc.text(textStr, xpPt, ypPt, { align, angle: 0, baseline: "alphabetic" });
     } else {
-      // Standard Center-Feed: Narrow-edge feed with Left edge entering first (UNTOUCHED)
-      // Top of voucher corresponds to right edge of portrait sheet (widthIn)
+      // Standard Center-Feed: Narrow-edge feed with Left edge entering first (angle: 270)
+      // Top of voucher corresponds to right edge of portrait sheet (carriageWidthIn - finalTopIn)
       const xpPt = (carriageWidthIn - finalTopIn) * 72;
-      const ypPt = finalLeftIn * 72;
-      // Note: In jsPDF with angle: 270, passing align: "right" causes jsPDF to shift xpPt (the vertical coordinate)
-      // instead of ypPt (the reading axis). Always draw with align: "left" to guarantee exact row alignment.
-      doc.text(String(text), xpPt, ypPt, { align: "left", angle: 270, baseline: "alphabetic" });
+      let ypPt = finalLeftIn * 72;
+      if (align === "right") {
+        ypPt -= textWidthPt;
+      } else if (align === "center") {
+        ypPt -= textWidthPt / 2;
+      }
+      doc.text(textStr, xpPt, ypPt, { align: "left", angle: 270, baseline: "alphabetic" });
+    }
+  };
+
+  const drawVoucherLine = (topIn, left1In, left2In, lineWidth = 0.65) => {
+    const finalTopIn = topIn + config.globalOffset.topIn;
+    const finalLeft1In = left1In + config.globalOffset.leftIn;
+    const finalLeft2In = left2In + config.globalOffset.leftIn;
+    doc.setLineWidth(lineWidth);
+    doc.setDrawColor(0, 0, 0);
+    if (isL121) {
+      const yPt = finalTopIn * 72;
+      const x1Pt = finalLeft1In * 72;
+      const x2Pt = finalLeft2In * 72;
+      doc.line(x1Pt, yPt, x2Pt, yPt);
+    } else {
+      const xPt = (carriageWidthIn - finalTopIn) * 72;
+      const y1Pt = finalLeft1In * 72;
+      const y2Pt = finalLeft2In * 72;
+      doc.line(xPt, y1Pt, xPt, y2Pt);
     }
   };
 
@@ -1108,40 +1151,108 @@ export function generateCheckVoucherPdf(data, config = CHECK_VOUCHER_LAYOUT_CONF
   );
   drawVoucherText(dateStr, f.date.topIn, f.date.leftIn, {
     size: f.date.fontSize,
-    align: f.date.align,
+    fontStyle: f.date.fontStyle || "bold",
+    align: f.date.align || "center",
   });
 
   const payee = data.payee || data.supplier_name || "-";
   drawVoucherText(payee, f.payee.topIn, f.payee.leftIn, {
     size: f.payee.fontSize,
     fontStyle: f.payee.fontStyle || "bold",
+    maxWidthIn: f.payee.maxWidthIn,
   });
 
   const particulars = data.particulars || data.description || "";
-  const maxPartWidthPt = (f.particulars.maxWidthIn || 5.45) * 72;
-  const partLines = doc.splitTextToSize(String(particulars), maxPartWidthPt);
-  partLines.slice(0, 3).forEach((line, idx) => {
-    drawVoucherText(line, f.particulars.topIn + idx * 0.18, f.particulars.leftIn, {
-      size: f.particulars.fontSize,
-    });
+  drawVoucherText(particulars, f.particulars.topIn, f.particulars.leftIn, {
+    size: f.particulars.fontSize,
+    fontStyle: f.particulars.fontStyle || "bold",
+    maxWidthIn: f.particulars.maxWidthIn,
   });
 
+  // Columns inside Particulars
+  const checkDateVal = data.check_date ? fmtDate(data.check_date) : data.checkDate || "";
+  const docNoVal = data.supplier_document_no || data.documentNo || "";
+  const checkNoVal = data.check_number || data.checkNo || "";
+
+  if (f.columns?.checkDate) {
+    drawVoucherText("CHECK DATE", f.columns.checkDate.header.topIn, f.columns.checkDate.header.leftIn, {
+      size: f.columns.checkDate.header.fontSize,
+      fontStyle: f.columns.checkDate.header.fontStyle || "bold",
+      align: f.columns.checkDate.header.align || "center",
+    });
+    if (checkDateVal) {
+      drawVoucherText(checkDateVal, f.columns.checkDate.value.topIn, f.columns.checkDate.value.leftIn, {
+        size: f.columns.checkDate.value.fontSize,
+        fontStyle: f.columns.checkDate.value.fontStyle || "bold",
+        align: f.columns.checkDate.value.align || "center",
+      });
+    }
+  }
+
+  if (f.columns?.documentNo) {
+    drawVoucherText("DR/INVOICE NUMBER", f.columns.documentNo.header.topIn, f.columns.documentNo.header.leftIn, {
+      size: f.columns.documentNo.header.fontSize,
+      fontStyle: f.columns.documentNo.header.fontStyle || "bold",
+      align: f.columns.documentNo.header.align || "center",
+    });
+    if (docNoVal && docNoVal !== "-") {
+      drawVoucherText(docNoVal, f.columns.documentNo.value.topIn, f.columns.documentNo.value.leftIn, {
+        size: f.columns.documentNo.value.fontSize,
+        fontStyle: f.columns.documentNo.value.fontStyle || "bold",
+        align: f.columns.documentNo.value.align || "center",
+      });
+    }
+  }
+
+  if (f.columns?.checkNo) {
+    drawVoucherText("CHECK NUMBER", f.columns.checkNo.header.topIn, f.columns.checkNo.header.leftIn, {
+      size: f.columns.checkNo.header.fontSize,
+      fontStyle: f.columns.checkNo.header.fontStyle || "bold",
+      align: f.columns.checkNo.header.align || "center",
+    });
+    if (checkNoVal && checkNoVal !== "-") {
+      drawVoucherText(checkNoVal, f.columns.checkNo.value.topIn, f.columns.checkNo.value.leftIn, {
+        size: f.columns.checkNo.value.fontSize,
+        fontStyle: f.columns.checkNo.value.fontStyle || "bold",
+        align: f.columns.checkNo.value.align || "center",
+      });
+    }
+  }
+
+  // Amounts & Underlines
   const amt = data.amount
     ? typeof data.amount === "number"
       ? fmtMoney(data.amount)
       : String(data.amount)
     : "";
-  drawVoucherText(amt, f.amount.topIn, f.amount.leftIn, {
-    size: f.amount.fontSize,
-    fontStyle: f.amount.fontStyle || "bold",
-    align: f.amount.align,
-  });
+  if (amt && f.amount?.row1) {
+    drawVoucherText(amt, f.amount.row1.topIn, f.amount.row1.leftIn, {
+      size: f.amount.row1.fontSize,
+      fontStyle: f.amount.row1.fontStyle || "bold",
+      align: f.amount.row1.align || "right",
+    });
+    if (f.amount.line1) {
+      drawVoucherLine(f.amount.line1.topIn, f.amount.line1.left1In, f.amount.line1.left2In);
+    }
+    if (f.amount.row2) {
+      drawVoucherText(amt, f.amount.row2.topIn, f.amount.row2.leftIn, {
+        size: f.amount.row2.fontSize,
+        fontStyle: f.amount.row2.fontStyle || "bold",
+        align: f.amount.row2.align || "right",
+      });
+    }
+    if (f.amount.doubleUnderline) {
+      drawVoucherLine(f.amount.doubleUnderline.topIn1, f.amount.doubleUnderline.left1In, f.amount.doubleUnderline.left2In);
+      drawVoucherLine(f.amount.doubleUnderline.topIn2, f.amount.doubleUnderline.left1In, f.amount.doubleUnderline.left2In);
+    }
+  }
 
   const prepBy = data.preparedBy || data.prepared_by_name_snapshot || "";
-  if (prepBy) {
-    drawVoucherText(prepBy, f.signatures.topIn, f.signatures.preparedBy.leftIn, {
+  if (prepBy && f.signatures?.preparedBy) {
+    drawVoucherText(prepBy, f.signatures.preparedBy.topIn, f.signatures.preparedBy.leftIn, {
       size: f.signatures.preparedBy.fontSize,
-      align: f.signatures.preparedBy.align,
+      fontStyle: f.signatures.preparedBy.fontStyle || "bold",
+      align: f.signatures.preparedBy.align || "center",
     });
   }
 

@@ -212,7 +212,7 @@ function CheckVoucherPrintPage() {
           sharedCalibration,
         )
       }
-      hideDownloadPdf={true}
+      hideDownloadPdf={false}
       hideDownloadExcel={true}
       directPrintJob={{
         identifier: id,
@@ -226,7 +226,13 @@ function CheckVoucherPrintPage() {
           amount: printProps.amount,
           documentNo: printProps.documentNo,
           checkNo: printProps.checkNo,
+          checkDate: e.check_date ? fmtDate(e.check_date) : printProps.date,
           preparedBy: printProps.preparedBy,
+          supplier_name: e.supplier_name,
+          check_number: e.check_number,
+          supplier_document_no: e.supplier_document_no,
+          description: e.description,
+          prepared_by_name_snapshot: e.prepared_by_name_snapshot,
         },
       }}
     >
@@ -317,6 +323,33 @@ function CheckVoucherDetailsCard({
           </span>
           <div className="font-mono text-[11px] text-slate-800 bg-slate-50 border rounded-lg p-3 leading-relaxed">
             {printProps.particulars || "No particulars specified."}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 rounded-lg bg-slate-50 border p-3 text-center">
+          <div>
+            <span className="text-[9.5px] uppercase font-bold tracking-wider text-muted-foreground block mb-0.5">
+              Check Date
+            </span>
+            <div className="font-mono text-xs font-bold text-slate-800">
+              {printProps.date || "—"}
+            </div>
+          </div>
+          <div className="border-x border-slate-200">
+            <span className="text-[9.5px] uppercase font-bold tracking-wider text-muted-foreground block mb-0.5">
+              DR / Invoice Number
+            </span>
+            <div className="font-mono text-xs font-bold text-slate-800">
+              {printProps.documentNo || "—"}
+            </div>
+          </div>
+          <div>
+            <span className="text-[9.5px] uppercase font-bold tracking-wider text-muted-foreground block mb-0.5">
+              Check Number
+            </span>
+            <div className="font-mono text-xs font-bold text-slate-800">
+              {printProps.checkNo || "—"}
+            </div>
           </div>
         </div>
       </div>

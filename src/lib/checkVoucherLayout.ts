@@ -23,13 +23,20 @@ export const CHECK_VOUCHER_PRINT_PROFILE = {
 } as const;
 
 export const CHECK_VOUCHER_FIELDS = {
-  date: { topIn: 1.4375, leftIn: 6.25, widthIn: 1.85, fontSize: 13, align: "center" }, // 1 7/16"
-  payee: { topIn: 1.8500, leftIn: 1.78, widthIn: 3.95, fontSize: 13, align: "left" }, // centered in bracket
-  particulars: { topIn: 2.95, leftIn: 0.82, widthIn: 5.45, fontSize: 11, align: "left" }, // shifted up ~5.7mm
-  amount1: { topIn: 2.95, leftIn: 6.6, widthIn: 1.1, fontSize: 13, align: "right" }, // shifted up ~5.7mm
-  amount2: { topIn: 3.175, leftIn: 6.6, widthIn: 1.1, fontSize: 13, align: "right" },
-  documentNo: { topIn: 5.0862, leftIn: 3.1456, widthIn: 1.9, fontSize: 12, align: "center" },
-  checkNo: { topIn: 5.0862, leftIn: 6.3056, widthIn: 1.45, fontSize: 12, align: "center" },
+  date: { topIn: 1.45, leftIn: 6.85, widthIn: 1.25, fontSize: 10, align: "center" },
+  payee: { topIn: 1.85, leftIn: 1.78, widthIn: 3.95, fontSize: 10.5, align: "left" },
+  particulars: { topIn: 2.92, leftIn: 0.95, widthIn: 5.45, fontSize: 9.5, align: "left" },
+  checkDateHeader: { topIn: 3.55, leftIn: 1.60, widthIn: 1.5, fontSize: 9, align: "center" },
+  checkDateValue: { topIn: 3.75, leftIn: 1.60, widthIn: 1.5, fontSize: 9.5, align: "center" },
+  documentNoHeader: { topIn: 3.55, leftIn: 3.65, widthIn: 2.0, fontSize: 9, align: "center" },
+  documentNoValue: { topIn: 3.75, leftIn: 3.65, widthIn: 2.0, fontSize: 10, align: "center" },
+  checkNoHeader: { topIn: 3.55, leftIn: 5.75, widthIn: 1.6, fontSize: 9, align: "center" },
+  checkNoValue: { topIn: 3.75, leftIn: 5.75, widthIn: 1.6, fontSize: 10, align: "center" },
+  amount1: { topIn: 3.10, leftIn: 6.6, widthIn: 0.85, fontSize: 10, align: "right" },
+  amount2: { topIn: 3.32, leftIn: 6.6, widthIn: 0.85, fontSize: 10, align: "right" },
+  documentNo: { topIn: 3.75, leftIn: 3.65, widthIn: 1.9, fontSize: 10, align: "center" },
+  checkNo: { topIn: 3.75, leftIn: 5.75, widthIn: 1.45, fontSize: 10, align: "center" },
+  preparedBy: { topIn: 5.62, leftIn: 1.33, widthIn: 1.4, fontSize: 10, align: "center" },
 } as const;
 
 export type CheckVoucherField = (typeof CHECK_VOUCHER_FIELDS)[keyof typeof CHECK_VOUCHER_FIELDS];
