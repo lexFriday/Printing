@@ -221,7 +221,7 @@ export const CHECK_LAYOUT_CONFIG = {
   },
   fields: {
     date: {
-      topIn: 0.66, // Centered vertically inside preprinted date boxes
+      topIn: 0.76, // Centered vertically inside preprinted date boxes
       fontSize: 10,
       boxLefts: [
         5.945, 6.141, // MM boxes
@@ -233,21 +233,21 @@ export const CHECK_LAYOUT_CONFIG = {
       yearLeftIn: 6.906,
     },
     payee: {
-      topIn: 1.00, // Onto PAY TO THE ORDER OF line
+      topIn: 1.25, // Onto PAY TO THE ORDER OF line
       leftIn: 1.30,
       maxWidthIn: 4.20, // Scales font down if long (no wrap, clear of ₱)
       fontSize: 11,
       fontStyle: "bold",
     },
     amount: {
-      topIn: 1.00, // Aligned with amount line
+      topIn: 1.25, // Aligned with amount line
       leftIn: 5.80, // Safely inside amount line after ₱
       maxWidthIn: 1.65,
       fontSize: 11.5,
       fontStyle: "bold",
     },
     amountWords: {
-      topIn: 1.30, // Onto PESOS line
+      topIn: 1.62, // Onto PESOS line
       leftIn: 1.20,
       maxWidthIn: 5.5,
       fontSize: 10.5,
