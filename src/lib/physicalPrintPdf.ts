@@ -706,8 +706,8 @@ export const CHECK_LAYOUT_CONFIG = {
   },
   fields: {
     date: {
-      topIn: 0.58,
-      fontSize: 11,
+      topIn: 0.66,
+      fontSize: 10,
       boxLefts: [
         5.945, 6.141, // MM boxes
         6.426, 6.621, // DD boxes
@@ -715,21 +715,21 @@ export const CHECK_LAYOUT_CONFIG = {
       ],
     },
     payee: {
-      topIn: 0.95,
+      topIn: 1.00,
       leftIn: 1.30,
-      maxWidthIn: 4.00,
+      maxWidthIn: 4.20,
       fontSize: 11,
       fontStyle: "bold" as const,
     },
     amount: {
-      topIn: 0.95,
-      leftIn: 6.00,
-      maxWidthIn: 1.55,
+      topIn: 1.00,
+      leftIn: 5.80,
+      maxWidthIn: 1.65,
       fontSize: 11.5,
       fontStyle: "bold" as const,
     },
     amountWords: {
-      topIn: 1.22,
+      topIn: 1.30,
       leftIn: 1.20,
       maxWidthIn: 5.5,
       fontSize: 10.5,

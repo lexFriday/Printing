@@ -84,7 +84,7 @@ assert.equal(LAYOUT_CONFIG.header.deliveredTo.leftIn, 1.5, "DR Customer relative
 assert.equal(LAYOUT_CONFIG.header.address.topIn, 2.79, "DR Address relative top updated");
 assert.equal(LAYOUT_CONFIG.header.poNo.leftIn, 4.25, "DR PO No relative left updated");
 assert.equal(LAYOUT_CONFIG.items.columns.description.leftIn, 1.2, "DR Line item relative coordinate untouched");
-assert.equal(CHECK_LAYOUT_CONFIG.fields.payee.topIn, 0.95, "Check payee relative top untouched");
+assert.equal(CHECK_LAYOUT_CONFIG.fields.payee.topIn, 1.00, "Check payee relative top updated to 1.00in");
 assert.equal(CHECK_LAYOUT_CONFIG.fields.payee.leftIn, 1.30, "Check payee relative left untouched");
 assert.equal(SERVICE_INVOICE_LAYOUT_CONFIG.header.soldTo.leftIn, 1.38, "SI Customer relative coordinate untouched");
 assert.equal(CHECK_VOUCHER_LAYOUT_CONFIG.fields.payee.leftIn, 1.15, "CV Payee relative coordinate updated to 1.15in");

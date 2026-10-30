@@ -147,7 +147,7 @@ function CheckPrintPage() {
       backSearch={backSearch}
       backLabel={search.from === "job" && search.jobId ? "Back to job" : "Back to reports"}
       pdfPageSize={CHECK_PAGE_SIZE_PT}
-      pageCssSize="8in 3.3in"
+      pageCssSize="8in 3in"
       printProfile={CHECK_PRINT_PROFILE}
       printWithGeneratedPdf
       buildGeneratedPdf={(calibration) => buildCheckPdf({ ...printProps, calibration })}
