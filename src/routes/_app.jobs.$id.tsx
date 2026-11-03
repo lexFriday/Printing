@@ -742,6 +742,11 @@ function JobDetails() {
               <span className="text-xs text-muted-foreground">Use the completed JO to prepare the invoice.</span>
             </div>
           ) : null}
+          <Button asChild variant="outline">
+            <Link to="/jobs/$id/job-order/print" params={{ id }} search={{ fromInvoiceId: undefined }}>
+              <Printer className="h-4 w-4" /> Print Job Order
+            </Link>
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild><Button variant="outline" size="icon" aria-label="More Job Order actions"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
             <DropdownMenuContent align="end">

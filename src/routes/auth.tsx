@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,8 +9,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { APP_NAME, SEO_SITE_NAME } from "@/lib/brand";
 import { useAuth } from "@/hooks/useAuth";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, RefreshCw } from "lucide-react";
 import { defaultLandingForRole } from "@/lib/roles";
+import {
+  APP_VERSION,
+  clearSiteCacheAndReload,
+  purgeStaleAuthStorage,
+  recordAuthSignIn,
+} from "@/lib/appVersion";
 
 const AUTH_LOGO_PATH = "/brand/automate-it-solutions-logo-transparent.png";
 
@@ -21,26 +27,31 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const { user, role, loading, roleLoading } = useAuth();
+  const nav = useNavigate();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [clearingCache, setClearingCache] = useState(false);
   const [ready, setReady] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     setReady(true);
     if (!loading && !roleLoading && user) {
-      window.location.replace(defaultLandingForRole(role));
+      void nav({ to: defaultLandingForRole(role), replace: true });
     }
-  }, [loading, role, roleLoading, user]);
+  }, [loading, nav, role, roleLoading, user]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     try {
       if (mode === "signin") {
+        // Clear any stale or corrupted auth tokens before starting a fresh sign-in
+        purgeStaleAuthStorage();
+        recordAuthSignIn();
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Welcome back");
@@ -265,6 +276,26 @@ function AuthPage() {
                     </form>
                   </TabsContent>
                 </Tabs>
+
+                <div className="mt-5 border-t border-slate-200/70 pt-3.5 flex flex-col items-center gap-1.5 text-center">
+                  <button
+                    type="button"
+                    disabled={clearingCache}
+                    onClick={async () => {
+                      setClearingCache(true);
+                      await clearSiteCacheAndReload({ clearAuth: true, redirectTo: "/auth" });
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 disabled:opacity-50"
+                  >
+                    <RefreshCw className={`h-3 w-3 ${clearingCache ? "animate-spin" : ""}`} />
+                    {clearingCache
+                      ? "Clearing cache & resetting session…"
+                      : "Having trouble signing in? Clear cache & reset session"}
+                  </button>
+                  <span className="text-[10px] font-mono text-slate-400">
+                    Build {APP_VERSION}
+                  </span>
+                </div>
               </div>
             </div>
 

@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEffect } from "react";
 import { Clock3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { recordIntentionalSignOut } from "@/lib/appVersion";
 
 export const Route = createFileRoute("/_app")({
   component: AppLayout,
@@ -72,7 +73,14 @@ function WaitingForWorkspaceAccess() {
           <Button type="button" onClick={() => window.location.reload()}>
             Try again
           </Button>
-          <Button type="button" variant="outline" onClick={() => void supabase.auth.signOut()}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              recordIntentionalSignOut();
+              void supabase.auth.signOut();
+            }}
+          >
             Sign out
           </Button>
         </div>

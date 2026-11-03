@@ -706,8 +706,9 @@ export const CHECK_LAYOUT_CONFIG = {
   },
   fields: {
     date: {
-      topIn: 0.76,
+      topIn: 0.62,
       fontSize: 10,
+      fontStyle: "bold" as const,
       boxLefts: [
         5.945, 6.141, // MM boxes
         6.426, 6.621, // DD boxes
@@ -715,23 +716,23 @@ export const CHECK_LAYOUT_CONFIG = {
       ],
     },
     payee: {
-      topIn: 1.25,
+      topIn: 1.00,
       leftIn: 1.30,
-      maxWidthIn: 4.20,
+      maxWidthIn: 4.05,
       fontSize: 11,
       fontStyle: "bold" as const,
     },
     amount: {
-      topIn: 1.25,
+      topIn: 1.00,
       leftIn: 5.80,
       maxWidthIn: 1.65,
       fontSize: 11.5,
       fontStyle: "bold" as const,
     },
     amountWords: {
-      topIn: 1.62,
+      topIn: 1.30,
       leftIn: 1.20,
-      maxWidthIn: 5.5,
+      maxWidthIn: 6.20,
       fontSize: 10.5,
       fontStyle: "bold" as const,
     },
@@ -743,20 +744,10 @@ export async function generateCheckPdf(
   config = CHECK_LAYOUT_CONFIG,
   _printerModel = "standard",
   templateUrl = "/templates/check-template.jpg",
-  calibration?: { page?: { xMm?: number; yMm?: number } },
+  _calibration?: { page?: { xMm?: number; yMm?: number } },
 ) {
-  let effectiveConfig = config;
-  if (calibration?.page) {
-    const xIn = (Number(calibration.page.xMm) || 0) / 25.4;
-    const yIn = (Number(calibration.page.yMm) || 0) / 25.4;
-    effectiveConfig = {
-      ...config,
-      globalOffset: {
-        topIn: (config.globalOffset?.topIn || 0) + yIn,
-        leftIn: (config.globalOffset?.leftIn || 0) + xIn,
-      },
-    };
-  }
+  // Bank checks use the verified CHECK_LAYOUT_CONFIG baseline directly so Web PDF and Direct Print (.exe) are identical.
+  const effectiveConfig = config;
 
   const widthPt = effectiveConfig.paper.widthIn * 72;
   const heightPt = effectiveConfig.paper.heightIn * 72;

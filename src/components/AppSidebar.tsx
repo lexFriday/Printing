@@ -23,11 +23,17 @@ import {
   ScrollText,
   LayoutDashboard,
   Package,
+  RefreshCw,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { APP_ICON_PATH, APP_LOGO_PATH, APP_NAME } from "@/lib/brand";
+import {
+  APP_VERSION,
+  clearSiteCacheAndReload,
+  recordIntentionalSignOut,
+} from "@/lib/appVersion";
 import {
   canAccountingWork,
   canViewJobOrders,
@@ -158,15 +164,28 @@ export function AppSidebar() {
           : null}
       </SidebarContent>
       <SidebarFooter>
-        <div className="p-2 text-xs text-muted-foreground truncate group-data-[collapsible=icon]:hidden">
+        <div className="px-2 pt-1 text-xs text-muted-foreground truncate group-data-[collapsible=icon]:hidden">
           {user?.email}
+        </div>
+        <div className="px-2 pb-1 text-[10px] font-mono text-muted-foreground/70 truncate group-data-[collapsible=icon]:hidden">
+          Build {APP_VERSION}
         </div>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              onClick={() =>
-                supabase.auth.signOut().then(() => nav({ to: "/auth", replace: true }))
-              }
+              onClick={() => void clearSiteCacheAndReload({ clearAuth: false })}
+              title="Clear site cache & reload into latest version"
+            >
+              <RefreshCw />
+              <span>Clear cache &amp; reload</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={() => {
+                recordIntentionalSignOut();
+                void supabase.auth.signOut().then(() => nav({ to: "/auth", replace: true }));
+              }}
             >
               <LogOut />
               <span>Sign out</span>

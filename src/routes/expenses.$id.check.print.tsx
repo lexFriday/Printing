@@ -79,7 +79,10 @@ function CheckPrintPage() {
       localStorage.removeItem("print-calibration-v2:default:check");
       localStorage.removeItem("print-calibration-v2:check");
     } catch {}
-  }, []);
+    if (user) {
+      resetPrintCalibration("check").catch(() => {});
+    }
+  }, [user]);
 
   const expense = useQuery({
     queryKey: ["check-print", id],
@@ -150,10 +153,10 @@ function CheckPrintPage() {
       pageCssSize="8in 3in"
       printProfile={CHECK_PRINT_PROFILE}
       printWithGeneratedPdf
-      buildGeneratedPdf={(calibration) => buildCheckPdf({ ...printProps, calibration })}
+      buildGeneratedPdf={() => buildCheckPdf(printProps)}
+      calibrationDocument="check"
       hideDownloadPdf={false}
       hideDownloadExcel={true}
-      calibrationDocument="check"
       directPrintJob={{
         identifier: id,
         label: `CHK-${e.check_number || (id || "").slice(0, 8)}`,
@@ -548,7 +551,6 @@ async function buildCheckPdf({
   dateMonth,
   dateDay,
   dateYear,
-  calibration,
 }: CheckPrintProps & { calibration?: PrintCalibration }) {
   return generateCheckPdf(
     {
@@ -563,6 +565,5 @@ async function buildCheckPdf({
     CHECK_LAYOUT_CONFIG,
     "standard",
     "/templates/check-template.jpg",
-    calibration,
   );
 }

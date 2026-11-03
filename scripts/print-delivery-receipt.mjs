@@ -221,8 +221,9 @@ export const CHECK_LAYOUT_CONFIG = {
   },
   fields: {
     date: {
-      topIn: 0.76, // Centered vertically inside preprinted date boxes
+      topIn: 0.62, // Centered vertically inside preprinted date boxes above horizontal rule
       fontSize: 10,
+      fontStyle: "bold",
       boxLefts: [
         5.945, 6.141, // MM boxes
         6.426, 6.621, // DD boxes
@@ -233,23 +234,23 @@ export const CHECK_LAYOUT_CONFIG = {
       yearLeftIn: 6.906,
     },
     payee: {
-      topIn: 1.25, // Onto PAY TO THE ORDER OF line
+      topIn: 1.00, // Onto PAY TO THE ORDER OF line
       leftIn: 1.30,
-      maxWidthIn: 4.20, // Scales font down if long (no wrap, clear of ₱)
+      maxWidthIn: 4.05, // Scales font down if long (no wrap, clear of ₱)
       fontSize: 11,
       fontStyle: "bold",
     },
     amount: {
-      topIn: 1.25, // Aligned with amount line
+      topIn: 1.00, // Aligned with amount line
       leftIn: 5.80, // Safely inside amount line after ₱
       maxWidthIn: 1.65,
       fontSize: 11.5,
       fontStyle: "bold",
     },
     amountWords: {
-      topIn: 1.62, // Onto PESOS line
+      topIn: 1.30, // Onto PESOS line
       leftIn: 1.20,
-      maxWidthIn: 5.5,
+      maxWidthIn: 6.20,
       fontSize: 10.5,
       fontStyle: "bold",
     },
@@ -1306,22 +1307,30 @@ export function generateCheckPdf(data, config = CHECK_LAYOUT_CONFIG, printerMode
       doc.setFontSize(currentSize);
     }
 
+    const textStr = String(text);
+    const textWidthPt = doc.getTextWidth(textStr);
+
     if (isL121) {
       // Epson L120/L121: Top-Feed (8" wide check on A4 carriage, top edge enters first)
       // Carriage is 8.2677" wide, check is 8.0" wide against fixed right guide (offset: 0.2677")
       const checkTrayOffsetIn = 8.2677 - (config.paper.checkHeightIn || 8.0); // 0.2677" (~6.8mm)
       const xpPt = (checkTrayOffsetIn + finalLeftIn) * 72;
       const ypPt = finalTopIn * 72;
-      doc.text(String(text), xpPt, ypPt, { align, angle: 0, baseline: "alphabetic" });
+      doc.text(textStr, xpPt, ypPt, { align, angle: 0, baseline: "alphabetic" });
     } else {
-      // Standard Center-Feed: Narrow-edge feed with Account Number (left edge) entering first (UNTOUCHED)
+      // Standard Center-Feed: Narrow-edge feed with Account Number (left edge) entering first
       // The 3" check is centered between tray guides at trayOffsetLeftIn (approx 2.635" on A4).
       // The pre-printed lines (Payee, Date, Amount) are on the right side of the check (checkWidthIn - finalTopIn).
       // Left edge of check enters first (Y = 0).
       const checkWidthIn = config.paper.checkWidthIn || 3.0;
       const xpPt = (trayOffsetLeftIn + checkWidthIn - finalTopIn) * 72;
-      const ypPt = finalLeftIn * 72;
-      doc.text(String(text), xpPt, ypPt, { align, angle: 270, baseline: "alphabetic" });
+      let ypPt = finalLeftIn * 72;
+      if (align === "right") {
+        ypPt -= textWidthPt;
+      } else if (align === "center") {
+        ypPt -= textWidthPt / 2;
+      }
+      doc.text(textStr, xpPt, ypPt, { align: "left", angle: 270, baseline: "alphabetic" });
     }
   };
 
@@ -1363,7 +1372,8 @@ export function generateCheckPdf(data, config = CHECK_LAYOUT_CONFIG, printerMode
   dateDigits.forEach((digit, idx) => {
     if (digit && boxLefts[idx]) {
       drawCheckText(digit, f.date.topIn, boxLefts[idx], {
-        size: f.date.fontSize || 11,
+        size: f.date.fontSize || 10,
+        fontStyle: f.date.fontStyle || "bold",
         align: "center",
       });
     }

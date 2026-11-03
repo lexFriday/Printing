@@ -11,6 +11,11 @@ import {
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import {
+  detectAndHealUnexpectedSignOut,
+  recordAuthSignIn,
+  sanitizeStoredAuthSession,
+} from "@/lib/appVersion";
 
 export type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -54,23 +59,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const appliedSessionKey = useRef<string | null>(null);
   const currentUserId = useRef<string | null>(null);
+  const roleLoadedForUser = useRef<string | null>(null);
+  const roleLookupInFlightForUser = useRef<string | null>(null);
+  const isRefreshingSession = useRef(false);
 
   useEffect(() => {
     let active = true;
+    sanitizeStoredAuthSession();
 
-    async function applySession(s: Session | null) {
+    async function applySession(s: Session | null, event?: string) {
+      if (event === "SIGNED_IN" && s?.user) {
+        recordAuthSignIn();
+      }
+
       const nextSessionKey = s ? `${s.user.id}:${s.access_token}` : null;
-      if (appliedSessionKey.current === nextSessionKey) {
+      if (appliedSessionKey.current === nextSessionKey && nextSessionKey !== null) {
         setLoading(false);
         return;
       }
 
-      appliedSessionKey.current = nextSessionKey;
-      setSession(s);
-      setUser(s?.user ?? null);
-      currentUserId.current = s?.user.id ?? null;
-
       if (!s?.user) {
+        const hadUser = Boolean(currentUserId.current);
+        appliedSessionKey.current = null;
+        currentUserId.current = null;
+        roleLoadedForUser.current = null;
+        roleLookupInFlightForUser.current = null;
+
+        if (hadUser || event === "SIGNED_OUT") {
+          const loopDetected = detectAndHealUnexpectedSignOut();
+          if (loopDetected && typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("automate:auth-loop"));
+          }
+        }
+
+        setSession(null);
+        setUser(null);
         setRole(null);
         setRoleError(null);
         setRoleLoading(false);
@@ -78,49 +101,101 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      appliedSessionKey.current = nextSessionKey;
+      setSession(s);
+      setUser(s.user);
+
+      // If we already loaded the role for this exact user (or a lookup for this user is already in flight),
+      // do not re-trigger roleLoading or a recursive refreshSession loop on TOKEN_REFRESHED.
+      if (
+        currentUserId.current === s.user.id &&
+        (roleLoadedForUser.current === s.user.id || roleLookupInFlightForUser.current === s.user.id)
+      ) {
+        setLoading(false);
+        if (roleLoadedForUser.current === s.user.id) {
+          setRoleLoading(false);
+        }
+        return;
+      }
+
+      currentUserId.current = s.user.id;
+      roleLookupInFlightForUser.current = s.user.id;
       setRoleLoading(true);
-      setLoading((wasLoading) => wasLoading && !currentUserId.current);
+      setLoading(false);
+
       let data: { role: AppRole } | null = null;
       let error: { message?: string; code?: string } | null = null;
 
       for (let attempt = 0; attempt < 3; attempt += 1) {
-        const result = await withTimeout(
-          supabase.from("user_roles").select("role").eq("user_id", s.user.id).maybeSingle(),
-          5000,
-          "Role lookup",
-        );
-        data = result.data as { role: AppRole } | null;
-        error = result.error;
+        try {
+          const result = await withTimeout(
+            supabase.from("user_roles").select("role").eq("user_id", s.user.id).maybeSingle(),
+            8000,
+            "Role lookup",
+          );
+          data = result.data as { role: AppRole } | null;
+          error = result.error;
+        } catch (lookupErr) {
+          error = {
+            message: lookupErr instanceof Error ? lookupErr.message : "Role lookup timed out.",
+          };
+        }
 
-        if (!error || error.code !== "PGRST303") break;
+        if (!error) break;
 
-        // Supabase can briefly reject a freshly issued token when Auth and
-        // PostgREST clocks are out of sync. Refresh once, then retry.
-        if (attempt === 0) await supabase.auth.refreshSession();
-        await wait(2000 * (attempt + 1));
+        // If PostgREST clock is slightly behind Auth (PGRST303), simply wait for clocks to align.
+        // Avoid calling refreshSession() on a fresh token to prevent refresh-token rotation collisions.
+        if (error.code === "PGRST303") {
+          const isExpired = s.expires_at ? s.expires_at * 1000 < Date.now() : false;
+          if (isExpired && attempt === 0 && !isRefreshingSession.current) {
+            isRefreshingSession.current = true;
+            try {
+              await supabase.auth.refreshSession();
+            } catch {} finally {
+              isRefreshingSession.current = false;
+            }
+          }
+          await wait(1500 * (attempt + 1));
+          continue;
+        }
+
+        break;
       }
 
       if (!active) return;
-      if (error) console.error("[Auth] Unable to load user role", error);
+      roleLookupInFlightForUser.current = null;
+      if (error) {
+        console.error("[Auth] Unable to load user role", error);
+      } else {
+        roleLoadedForUser.current = s.user.id;
+      }
       setRoleError(error ? (error.message ?? "Unable to load your access") : null);
       setRole(error ? null : (data?.role ?? null));
       setRoleLoading(false);
       setLoading(false);
     }
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       window.setTimeout(() => {
-        if (active) void applySession(s);
+        if (active) void applySession(s, event);
       }, 0);
     });
 
-    withTimeout(supabase.auth.getSession(), 5000, "Session lookup")
+    withTimeout(supabase.auth.getSession(), 12000, "Session lookup")
       .then(({ data }) => {
-        if (active) void applySession(data.session);
+        if (!active) return;
+        // If onAuthStateChange already populated the active user, don't overwrite with a stale null
+        if (currentUserId.current && !data.session) return;
+        void applySession(data.session, "INITIAL_SESSION");
       })
       .catch((error) => {
         console.error("[Auth] Unable to load session", error);
         if (!active) return;
+        // Never wipe an already-authenticated user if getSession() timed out in the background
+        if (currentUserId.current) {
+          setLoading(false);
+          return;
+        }
         setSession(null);
         setUser(null);
         setRole(null);

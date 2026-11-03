@@ -6,6 +6,7 @@ import {
   Download,
   Laptop,
   Monitor,
+  Printer,
   RefreshCw,
   Search,
   Settings2,
@@ -89,7 +90,7 @@ export function PrintShell({
   children: ReactNode;
   calibrationDocument?: CalibrationDocumentType;
 }) {
-  const [pdfAction, setPdfAction] = useState<"download" | "direct" | null>(null);
+  const [pdfAction, setPdfAction] = useState<"download" | "print" | "direct" | null>(null);
   const printAgent = usePrintAgent();
   const [customHostInput, setCustomHostInput] = useState(printAgent.host);
   useEffect(() => {
@@ -202,6 +203,34 @@ export function PrintShell({
     } finally {
       setPdfAction(null);
     }
+  }
+
+  async function printGeneratedPdf() {
+    setPdfAction("print");
+    try {
+      const pdf = await buildPdf(true);
+      if (!pdf) return;
+      pdf.autoPrint({ variant: "non-conform" });
+      const url = URL.createObjectURL(pdf.output("blob"));
+      writePdfViewer(window, url, safePdfName(pdfFileName), { autoPrint: true });
+    } catch (error) {
+      console.error(error);
+      toast.error(pdfDownloadErrorMessage(error));
+    } finally {
+      setPdfAction(null);
+    }
+  }
+
+  function handlePrint() {
+    if (downloadExcel) {
+      downloadExcel();
+      return;
+    }
+    if (printWithGeneratedPdf) {
+      void printGeneratedPdf();
+      return;
+    }
+    window.print();
   }
 
   return (
@@ -824,6 +853,12 @@ export function PrintShell({
           {!hideDownloadExcel && downloadExcel ? (
             <Button variant="outline" onClick={downloadExcel}>
               Download Excel
+            </Button>
+          ) : null}
+          {!directPrintJob ? (
+            <Button onClick={handlePrint} disabled={pdfAction !== null}>
+              <Printer className="h-4 w-4" />
+              {pdfAction === "print" ? "Preparing..." : downloadExcel ? "Print in Excel" : "Print"}
             </Button>
           ) : null}
         </div>

@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/hooks/useAuth";
+import { AppUpdateBanner } from "@/components/AppUpdateBanner";
 import {
   APPLE_TOUCH_ICON_PATH,
   FAVICON_PATH,
@@ -173,6 +174,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <AppUpdateBanner />
         <Outlet />
       </AuthProvider>
       <Toaster richColors position="top-right" />
