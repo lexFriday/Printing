@@ -288,7 +288,20 @@ function JobDetails() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      const { error } = await supabase.from("job_expenses").insert({
+      const { data: existingExpenses } = await (supabase as any)
+        .from("job_expenses")
+        .select("general_expense_number");
+      const existingNumbers = (existingExpenses ?? [])
+        .map((item: any) => {
+          const match = String(item.general_expense_number ?? "").match(/^GE-\d{4}-(\d+)$/);
+          return match ? Number(match[1]) : 0;
+        })
+        .filter((num: number) => Number.isFinite(num));
+      const nextSeq = (existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0) + 1;
+      const expenseYear = (f.expense_date || "").slice(0, 4) || String(new Date().getFullYear());
+      const generalExpenseNumber = `GE-${expenseYear}-${String(nextSeq).padStart(6, "0")}`;
+      const { error } = await (supabase as any).from("job_expenses").insert({
+        general_expense_number: generalExpenseNumber,
         expense_date: f.expense_date,
         description: f.description.trim(),
         quantity: f.expense_type === "materials" ? f.quantity : null,

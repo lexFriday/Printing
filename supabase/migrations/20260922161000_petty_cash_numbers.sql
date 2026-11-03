@@ -3,6 +3,7 @@
 BEGIN;
 
 CREATE SEQUENCE IF NOT EXISTS public.petty_cash_number_seq;
+GRANT USAGE, SELECT ON SEQUENCE public.petty_cash_number_seq TO authenticated, service_role;
 
 ALTER TABLE public.petty_cash_batches
   ADD COLUMN IF NOT EXISTS petty_cash_number text;

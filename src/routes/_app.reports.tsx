@@ -1865,7 +1865,20 @@ function Reports() {
         (batch) => batch.id === expenseImportBatchId,
       );
       const isPettyCashImport = Boolean(selectedPettyCashBatch);
+      const { data: existingExpenses } = await (supabase as any)
+        .from("job_expenses")
+        .select("general_expense_number");
+      const existingExpenseNumbers = (existingExpenses ?? [])
+        .map((expense: any) => {
+          const match = String(expense.general_expense_number ?? "").match(/^GE-\d{4}-(\d+)$/);
+          return match ? Number(match[1]) : 0;
+        })
+        .filter((num: number) => Number.isFinite(num));
+      let nextExpenseSeq =
+        (existingExpenseNumbers.length > 0 ? Math.max(...existingExpenseNumbers) : 0) + 1;
+      const expenseYear = new Date().getFullYear();
       const expensePayload = rowsToImport.map((row) => ({
+        general_expense_number: `GE-${expenseYear}-${String(nextExpenseSeq++).padStart(6, "0")}`,
         job_order_id: row.job_order_id,
         petty_cash_batch_id: expenseImportBatchId === "none" ? null : expenseImportBatchId,
         expense_date: row.expense_date,
@@ -1956,9 +1969,27 @@ function Reports() {
           .from("petty_cash_batches")
           .update(payload)
           .eq("id", editingPettyCashBatch.id)
-      : await (supabase as any)
-          .from("petty_cash_batches")
-          .insert({ ...payload, created_by: user?.id });
+      : await (async () => {
+          const { data: existingBatches } = await (supabase as any)
+            .from("petty_cash_batches")
+            .select("petty_cash_number");
+          const existingNumbers = (existingBatches ?? [])
+            .map((batch: any) => {
+              const match = String(batch.petty_cash_number ?? "").match(/^PC-\d{4}-(\d+)$/);
+              return match ? Number(match[1]) : 0;
+            })
+            .filter((num: number) => Number.isFinite(num));
+          const nextSeq = (existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0) + 1;
+          const batchYear = (payload.funding_date || "").slice(0, 4) || String(new Date().getFullYear());
+          const pettyCashNumber = `PC-${batchYear}-${String(nextSeq).padStart(6, "0")}`;
+          return (supabase as any)
+            .from("petty_cash_batches")
+            .insert({
+              ...payload,
+              petty_cash_number: pettyCashNumber,
+              created_by: user?.id,
+            });
+        })();
     if (error) return toast.error(error.message);
     setPettyCashOpen(false);
     setEditingPettyCashBatch(null);

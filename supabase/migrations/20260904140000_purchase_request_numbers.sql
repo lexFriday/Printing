@@ -1,4 +1,5 @@
 CREATE SEQUENCE IF NOT EXISTS public.purchase_request_number_seq;
+GRANT USAGE, SELECT ON SEQUENCE public.purchase_request_number_seq TO authenticated, service_role;
 
 ALTER TABLE public.purchase_requests
   ADD COLUMN IF NOT EXISTS purchase_number TEXT;

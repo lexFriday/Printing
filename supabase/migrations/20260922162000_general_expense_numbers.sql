@@ -2,6 +2,7 @@
 BEGIN;
 
 CREATE SEQUENCE IF NOT EXISTS public.general_expense_number_seq;
+GRANT USAGE, SELECT ON SEQUENCE public.general_expense_number_seq TO authenticated, service_role;
 
 ALTER TABLE public.job_expenses
   ADD COLUMN IF NOT EXISTS general_expense_number text,
