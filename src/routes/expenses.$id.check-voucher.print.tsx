@@ -58,7 +58,7 @@ export const Route = createFileRoute("/expenses/$id/check-voucher/print")({
     tab: typeof search.tab === "string" ? search.tab : "disbursements",
   }),
   errorComponent: ({ error }) => (
-    <PrintShell backTo="/reports" backLabel="Back to reports">
+    <PrintShell backTo="/reports" backLabel="Back to reports" hideDownloadPdf={true}>
       <Alert variant="destructive">
         <AlertTitle>Unable to load voucher</AlertTitle>
         <AlertDescription>
@@ -154,7 +154,7 @@ function CheckVoucherPrintPage() {
 
   if (expense.isError || !expense.data) {
     return (
-      <PrintShell backTo="/reports" backLabel="Back to reports">
+      <PrintShell backTo="/reports" backLabel="Back to reports" hideDownloadPdf={true}>
         <Alert variant="destructive">
           <AlertTitle>Payable not found.</AlertTitle>
           <AlertDescription>
@@ -212,7 +212,7 @@ function CheckVoucherPrintPage() {
           sharedCalibration,
         )
       }
-      hideDownloadPdf={false}
+      hideDownloadPdf={true}
       hideDownloadExcel={true}
       directPrintJob={{
         identifier: id,

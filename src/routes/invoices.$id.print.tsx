@@ -29,7 +29,7 @@ export const Route = createFileRoute("/invoices/$id/print")({
     ewtRate: Number(search.ewtRate ?? 0.02),
   }),
   errorComponent: ({ error }) => (
-    <BasePrintShell backTo="/invoices" backLabel="Back to invoices">
+    <BasePrintShell backTo="/invoices" backLabel="Back to invoices" hideDownloadPdf={true}>
       <Alert variant="destructive">
         <AlertTitle>Unable to load invoice</AlertTitle>
         <AlertDescription>

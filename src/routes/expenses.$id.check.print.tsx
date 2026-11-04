@@ -52,7 +52,7 @@ export const Route = createFileRoute("/expenses/$id/check/print")({
     tab: typeof search.tab === "string" ? search.tab : "disbursements",
   }),
   errorComponent: ({ error }) => (
-    <PrintShell backTo="/reports" backLabel="Back to reports">
+    <PrintShell backTo="/reports" backLabel="Back to reports" hideDownloadPdf={true}>
       <Alert variant="destructive">
         <AlertTitle>Unable to load check</AlertTitle>
         <AlertDescription>
@@ -127,7 +127,7 @@ function CheckPrintPage() {
 
   if (expense.isError || !expense.data || !printProps) {
     return (
-      <PrintShell backTo="/reports" backLabel="Back to reports">
+      <PrintShell backTo="/reports" backLabel="Back to reports" hideDownloadPdf={true}>
         <Alert variant="destructive">
           <AlertTitle>Payable not found.</AlertTitle>
           <AlertDescription>
@@ -155,7 +155,7 @@ function CheckPrintPage() {
       printWithGeneratedPdf
       buildGeneratedPdf={() => buildCheckPdf(printProps)}
       calibrationDocument="check"
-      hideDownloadPdf={false}
+      hideDownloadPdf={true}
       hideDownloadExcel={true}
       directPrintJob={{
         identifier: id,

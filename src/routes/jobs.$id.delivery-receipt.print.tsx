@@ -37,7 +37,7 @@ export const Route = createFileRoute("/jobs/$id/delivery-receipt/print")({
       search.hidePo !== "true",
   }),
   errorComponent: ({ error }) => (
-    <PrintShell backTo="/jobs" backLabel="Back to jobs">
+    <PrintShell backTo="/jobs" backLabel="Back to jobs" hideDownloadPdf={true}>
       <Alert variant="destructive">
         <AlertTitle>Unable to load delivery receipt</AlertTitle>
         <AlertDescription>
@@ -146,7 +146,7 @@ function DeliveryReceiptPrintPage() {
 
   if (job.isError || !job.data) {
     return (
-      <PrintShell backTo="/jobs" backLabel="Back to jobs">
+      <PrintShell backTo="/jobs" backLabel="Back to jobs" hideDownloadPdf={true}>
         <Alert variant="destructive">
           <AlertTitle>Job order not found.</AlertTitle>
           <AlertDescription>
