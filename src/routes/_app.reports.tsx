@@ -695,6 +695,13 @@ function Reports() {
     [matchesPettyCashSearch, pettyCashBatches.data, pettyCashStatusFilter],
   );
 
+  useEffect(() => {
+    if (pettyCashDetailsBatch && pettyCashBatches.data) {
+      const updated = pettyCashBatches.data.find((b: any) => b.id === pettyCashDetailsBatch.id);
+      if (updated) setPettyCashDetailsBatch(updated);
+    }
+  }, [pettyCashBatches.data]);
+
   const historicalEntries = useQuery({
     queryKey: ["report-historical-entries", REPORT_VERSION],
     retry: false,
@@ -1660,17 +1667,36 @@ function Reports() {
       }
       if (values.amount <= 0) throw new Error("Amount must be greater than zero.");
       if (values.tax_amount < 0) throw new Error("Tax cannot be negative.");
-      if (values.disbursement_category === "direct_materials") {
+      if (values.disbursement_category === "direct_materials" && !values.petty_cash_batch_id) {
         if (!values.supplier_name.trim())
           throw new Error("Company name is required for direct materials.");
         if (!values.supplier_tin.trim()) throw new Error("TIN is required for direct materials.");
         if (!values.supplier_address.trim())
           throw new Error("Address is required for direct materials.");
       }
+      if (values.petty_cash_batch_id) {
+        const { data: batch } = await (supabase as any)
+          .from("petty_cash_batches")
+          .select("status")
+          .eq("id", values.petty_cash_batch_id)
+          .maybeSingle();
+        if (batch && batch.status !== "open") {
+          throw new Error("Petty-cash receipts can only be edited while the batch is open.");
+        }
+      }
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      const { data, error } = await supabase
+      let proofPath: string | null = null;
+      if (values.payment_proof_file) {
+        const extension = values.payment_proof_file.name.split(".").pop()?.toLowerCase() || "bin";
+        proofPath = `${user?.id ?? "unknown"}/${id}.${extension}`;
+        const { error: uploadError } = await supabase.storage
+          .from("disbursement-payment-proofs")
+          .upload(proofPath, values.payment_proof_file, { upsert: true });
+        if (uploadError) throw uploadError;
+      }
+      let query = supabase
         .from("job_expenses")
         .update({
           job_order_id: values.job_order_id,
@@ -1695,13 +1721,28 @@ function Reports() {
           supplier_tin: values.supplier_tin.trim() || null,
           supplier_address: values.supplier_address.trim() || null,
           remarks: values.remarks.trim() || null,
+          ...(proofPath
+            ? {
+                payment_proof_storage_path: proofPath,
+                payment_proof_file_name: values.payment_proof_file?.name ?? null,
+                payment_proof_file_type: values.payment_proof_file?.type ?? null,
+                payment_proof_file_size: values.payment_proof_file?.size ?? null,
+              }
+            : {}),
         })
-        .eq("id", id)
-        .eq("payment_status", "pending")
-        .select("id")
-        .maybeSingle();
+        .eq("id", id);
+      if (!values.petty_cash_batch_id) {
+        query = query.eq("payment_status", "pending");
+      }
+      const { data, error } = await query.select("id").maybeSingle();
       if (error) throw error;
-      if (!data) throw new Error("This expense is no longer pending.");
+      if (!data) {
+        throw new Error(
+          values.petty_cash_batch_id
+            ? "Could not update this petty-cash receipt."
+            : "This expense is no longer pending.",
+        );
+      }
       const { error: allocationError } = await (supabase as any).rpc(
         "replace_job_expense_allocations",
         {
@@ -1711,12 +1752,17 @@ function Reports() {
       );
       if (allocationError) throw allocationError;
     },
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
       setEditingExpense(null);
       qc.invalidateQueries({ queryKey: ["report-payables", REPORT_VERSION] });
       qc.invalidateQueries({ queryKey: ["report-profit", REPORT_VERSION] });
       qc.invalidateQueries({ queryKey: ["dashboard", REPORT_VERSION] });
-      toast.success("Pending expense updated");
+      qc.invalidateQueries({ queryKey: ["petty-cash-batches"] });
+      toast.success(
+        vars.values.petty_cash_batch_id
+          ? "Petty-cash receipt updated"
+          : "Pending expense updated",
+      );
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -2004,6 +2050,26 @@ function Reports() {
     setPettyCashCustomFundingSource("");
     await qc.invalidateQueries({ queryKey: ["petty-cash-batches"] });
     toast.success(editingPettyCashBatch ? "Petty cash batch updated" : "Petty cash batch created");
+  };
+
+  const openEditPettyCashBatch = (batch: any) => {
+    setEditingPettyCashBatch(batch);
+    setPettyCashForm({
+      custodian_name: batch.custodian_name ?? "",
+      cash_received: String(batch.cash_received ?? ""),
+      funding_date: batch.funding_date ?? dateInputValue(new Date()),
+      funding_source: ["BDO", "GCash", "Bank transfer", "Cash"].includes(batch.funding_source)
+        ? batch.funding_source
+        : "Other",
+      funding_reference: batch.funding_reference ?? "",
+      job_order_id: batch.job_order_id ?? "",
+    });
+    setPettyCashCustomFundingSource(
+      ["BDO", "GCash", "Bank transfer", "Cash"].includes(batch.funding_source)
+        ? ""
+        : batch.funding_source ?? "",
+    );
+    setPettyCashOpen(true);
   };
 
   const addPettyCashFunding = async () => {
@@ -3939,28 +4005,19 @@ function Reports() {
                             {pettyCashDetailsBatch.funding_reference} · funded{" "}
                             {fmtDate(pettyCashDetailsBatch.funding_date)}
                           </div>
-                          <div className="flex justify-end">
-                            <Button
-                              variant="outline"
-                              onClick={() => {
-                                setEditingPettyCashBatch(pettyCashDetailsBatch);
-                                setPettyCashForm({
-                                  custodian_name: pettyCashDetailsBatch.custodian_name ?? "",
-                                  cash_received: String(pettyCashDetailsBatch.cash_received ?? ""),
-                                  funding_date:
-                                    pettyCashDetailsBatch.funding_date ??
-                                    dateInputValue(new Date()),
-                                  funding_source: pettyCashDetailsBatch.funding_source ?? "",
-                                  funding_reference: pettyCashDetailsBatch.funding_reference ?? "",
-                                  job_order_id: pettyCashDetailsBatch.job_order_id ?? "",
-                                });
-                                setPettyCashDetailsBatch(null);
-                                setPettyCashOpen(true);
-                              }}
-                            >
-                              Edit batch details
-                            </Button>
-                          </div>
+                          {canWrite && pettyCashDetailsBatch.status === "open" ? (
+                            <div className="flex justify-end">
+                              <Button
+                                variant="outline"
+                                onClick={() => {
+                                  openEditPettyCashBatch(pettyCashDetailsBatch);
+                                  setPettyCashDetailsBatch(null);
+                                }}
+                              >
+                                Edit batch details
+                              </Button>
+                            </div>
+                          ) : null}
                           <div className="rounded-md border p-4">
                             <div className="flex flex-wrap items-center justify-between gap-3">
                               <div>
@@ -4044,7 +4101,7 @@ function Reports() {
                                         {peso(receipt.amount)}
                                       </TableCell>
                                       <TableCell className="text-right">
-                                        {receipt.payment_status === "pending" ? (
+                                        {canWrite && (receipt.payment_status === "pending" || pettyCashDetailsBatch.status === "open") ? (
                                           <Button
                                             size="sm"
                                             variant="ghost"
@@ -4537,6 +4594,16 @@ function Reports() {
                               </Button>
                               {batch.status === "open" ? (
                                 <>
+                                  {canWrite ? (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      aria-label={`Edit ${batch.funding_source} batch for ${batch.custodian_name}`}
+                                      onClick={() => openEditPettyCashBatch(batch)}
+                                    >
+                                      Edit batch
+                                    </Button>
+                                  ) : null}
                                   <Button
                                     size="sm"
                                     aria-label={`Add receipt to ${batch.funding_source} batch for ${batch.custodian_name}`}
@@ -5356,10 +5423,15 @@ function Reports() {
       <Dialog open={!!editingExpense} onOpenChange={(open) => !open && setEditingExpense(null)}>
         <DialogContent className={EXPENSE_DIALOG_CLASS}>
           <DialogHeader>
-            <DialogTitle>Edit pending expense</DialogTitle>
+            <DialogTitle>
+              {editingExpense?.petty_cash_batch_id
+                ? "Edit petty cash receipt"
+                : "Edit pending expense"}
+            </DialogTitle>
             <p className="text-sm text-muted-foreground">
-              Update the expense details here. Payment release, check details, and proof stay in
-              Record payment.
+              {editingExpense?.petty_cash_batch_id
+                ? "Update the receipt details here. Correct the date, amount, Job Order, description, or supplier."
+                : "Update the expense details here. Payment release, check details, and proof stay in Record payment."}
             </p>
           </DialogHeader>
           {editingExpense ? (
@@ -5914,7 +5986,7 @@ function GeneralExpenseForm({
       amount: String(initialExpense.amount),
       tax_amount: String(initialExpense.tax_amount),
       tax_type: initialExpense.tax_type ?? "non_vat",
-      payment_status: "pending",
+      payment_status: initialExpense.petty_cash_batch_id ? "paid" : "pending",
       payment_method: initialExpense.payment_method,
       payment_state: initialExpense.payment_state,
       payment_source: initialExpense.payment_source,
@@ -5933,7 +6005,9 @@ function GeneralExpenseForm({
     });
   }, [initialExpense, today]);
   const isMaterial = f.expense_type === "materials";
-  const isPettyCashReceipt = Boolean(initialPettyCashBatch);
+  const isPettyCashReceipt = Boolean(
+    initialPettyCashBatch || f.petty_cash_batch_id || initialExpense?.petty_cash_batch_id,
+  );
   const needsSupplierDetails =
     f.disbursement_category === "direct_materials" && !isPettyCashReceipt;
   const needsPaymentProof = ["bank_transfer", "gcash", "petty_cash"].includes(f.payment_method);
@@ -6073,11 +6147,17 @@ function GeneralExpenseForm({
       f.payment_method === "check" && ["released", "cleared"].includes(f.payment_state);
     if (checkIssued && !f.check_number.trim()) return toast.error("Check number is required");
     if (checkIssued && !f.check_date) return toast.error("Check date is required");
-    if (f.payment_method === "petty_cash" && !f.payment_source.trim())
-      return toast.error("Payment source is required for petty cash");
+    if (f.payment_method === "petty_cash" && !f.payment_source.trim()) {
+      f.payment_source = "Cash";
+    }
     if (f.payment_method === "petty_cash" && !f.petty_cash_batch_id)
       return toast.error("Choose an open petty cash batch");
-    if (isPettyCashReceipt && !f.payment_proof_file && !f.receipt_missing_reason.trim()) {
+    if (
+      isPettyCashReceipt &&
+      !initialExpense &&
+      !f.payment_proof_file &&
+      !f.receipt_missing_reason.trim()
+    ) {
       return toast.error("Upload the receipt or explain why it is unavailable");
     }
     if (
@@ -6127,7 +6207,7 @@ function GeneralExpenseForm({
     );
   }
 
-  if (isPettyCashReceipt) {
+  if (initialPettyCashBatch) {
     const availableBatchBalance =
       Number(initialPettyCashBatch?.funding_total ?? 0) -
       Number(initialPettyCashBatch?.receipts_total ?? 0);
@@ -7236,7 +7316,7 @@ function GeneralExpenseForm({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Receipt upload *</Label>
+            <Label>Receipt upload {initialExpense ? "(optional replacement)" : "*"}</Label>
             <Input
               type="file"
               accept="image/jpeg,image/png,image/webp,application/pdf"
@@ -7251,11 +7331,12 @@ function GeneralExpenseForm({
               }}
             />
             <p className="text-xs text-muted-foreground">
-              Upload the supplier receipt. It is kept with this liquidation and supports the batch
-              balance.
+              {initialExpense
+                ? "Upload a replacement image only if the original receipt needs updating."
+                : "Upload the supplier receipt. It is kept with this liquidation and supports the batch balance."}
             </p>
           </div>
-          {!f.payment_proof_file ? (
+          {!f.payment_proof_file && !initialExpense ? (
             <>
               <Button
                 type="button"
