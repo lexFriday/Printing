@@ -3,6 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { PrintShell, usePrintCalibrationContext } from "@/components/print/PrintShell";
 import { amountToPesoWords } from "@/lib/amountWords";
 import { formatPrintMoney } from "@/lib/printFormat";
@@ -64,6 +67,20 @@ export const Route = createFileRoute("/expenses/$id/check/print")({
   component: CheckPrintPage,
 });
 
+function toDateInputValue(val?: string | Date | null): string {
+  if (!val) {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  }
+  if (typeof val === "string" && /^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+  const parsed = new Date(val);
+  if (isNaN(parsed.getTime())) {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  }
+  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${String(parsed.getDate()).padStart(2, "0")}`;
+}
+
 function CheckPrintPage() {
   const { id } = Route.useParams();
   const search = Route.useSearch();
@@ -100,22 +117,47 @@ function CheckPrintPage() {
     },
   });
 
+  const [useAutoDate, setUseAutoDate] = useState<boolean>(true);
+  const [manualDate, setManualDate] = useState<string>("");
+
+  useEffect(() => {
+    if (expense.data && !manualDate) {
+      const raw = expense.data.check_date ?? expense.data.paid_at ?? expense.data.expense_date;
+      setManualDate(toDateInputValue(raw));
+    }
+  }, [expense.data, manualDate]);
+
   const printProps = useMemo<CheckPrintProps | null>(() => {
     if (!expense.data) return null;
     const e = expense.data;
-    const rawDate = e.check_date ?? e.paid_at ?? e.expense_date;
-    const parsedDate = rawDate ? new Date(rawDate) : new Date();
-    const date = isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
+
+    let dateMonth: string;
+    let dateDay: string;
+    let dateYear: string;
+
+    if (useAutoDate) {
+      const now = new Date();
+      dateMonth = String(now.getMonth() + 1).padStart(2, "0");
+      dateDay = String(now.getDate()).padStart(2, "0");
+      dateYear = String(now.getFullYear());
+    } else {
+      const effectiveDateStr = manualDate || toDateInputValue(e.check_date ?? e.paid_at ?? e.expense_date);
+      const [y, m, d] = effectiveDateStr.split("-");
+      dateYear = y || String(new Date().getFullYear());
+      dateMonth = m || String(new Date().getMonth() + 1).padStart(2, "0");
+      dateDay = d || String(new Date().getDate()).padStart(2, "0");
+    }
+
     return {
       checkNo: e.check_number || "",
       payee: e.supplier_name || "PAYEE",
       amount: formatPrintMoney(e.amount),
       amountWords: amountToPesoWords(e.amount),
-      dateMonth: String(date.getMonth() + 1).padStart(2, "0"),
-      dateDay: String(date.getDate()).padStart(2, "0"),
-      dateYear: String(date.getFullYear()),
+      dateMonth,
+      dateDay,
+      dateYear,
     };
-  }, [expense.data]);
+  }, [expense.data, useAutoDate, manualDate]);
 
   if (loading || expense.isLoading) {
     return (
@@ -212,7 +254,14 @@ function CheckPrintPage() {
         ) : null}
 
         <div className="w-full space-y-5">
-          <CheckDetailsCard printProps={printProps} expense={e} />
+          <CheckDetailsCard
+            printProps={printProps}
+            expense={e}
+            useAutoDate={useAutoDate}
+            onToggleAutoDate={setUseAutoDate}
+            manualDate={manualDate}
+            onChangeManualDate={setManualDate}
+          />
           <PrinterInsertionGuide printProps={printProps} />
         </div>
       </div>
@@ -223,6 +272,10 @@ function CheckPrintPage() {
 function CheckDetailsCard({
   printProps,
   expense,
+  useAutoDate,
+  onToggleAutoDate,
+  manualDate,
+  onChangeManualDate,
 }: {
   printProps: CheckPrintProps;
   expense: {
@@ -230,6 +283,10 @@ function CheckDetailsCard({
     description?: string | null;
     supplier_document_no?: string | null;
   };
+  useAutoDate: boolean;
+  onToggleAutoDate: (val: boolean) => void;
+  manualDate: string;
+  onChangeManualDate: (val: string) => void;
 }) {
   return (
     <div className="rounded-xl border bg-white p-5 shadow-xs space-y-4">
@@ -263,11 +320,40 @@ function CheckDetailsCard({
             </div>
           </div>
 
-          <div className="sm:text-right">
-            <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block mb-1">
-              Date (MM - DD - YYYY)
-            </span>
-            <div className="flex items-center sm:justify-end gap-1 font-mono text-xs font-bold text-slate-800 pt-1">
+          <div className="space-y-1.5 sm:text-right">
+            <div className="flex items-center justify-between sm:justify-end gap-2">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block">
+                Printed Date
+              </span>
+              <div className="flex items-center gap-1.5">
+                <Label
+                  htmlFor="check-date-toggle"
+                  className="text-[11px] font-medium text-slate-600 cursor-pointer select-none"
+                >
+                  {useAutoDate ? "Auto (Today)" : "Manual"}
+                </Label>
+                <Switch
+                  id="check-date-toggle"
+                  checked={useAutoDate}
+                  onCheckedChange={onToggleAutoDate}
+                  aria-label="Toggle auto date vs manual date"
+                />
+              </div>
+            </div>
+
+            {!useAutoDate ? (
+              <div className="flex justify-start sm:justify-end">
+                <Input
+                  type="date"
+                  value={manualDate}
+                  onChange={(e) => onChangeManualDate(e.target.value)}
+                  className="h-8 w-44 text-xs font-mono"
+                  aria-label="Manual check date"
+                />
+              </div>
+            ) : null}
+
+            <div className="flex items-center sm:justify-end gap-1 font-mono text-xs font-bold text-slate-800 pt-0.5">
               <span className="bg-slate-100 border px-2 py-0.5 rounded">{printProps.dateMonth}</span>
               <span>-</span>
               <span className="bg-slate-100 border px-2 py-0.5 rounded">{printProps.dateDay}</span>
