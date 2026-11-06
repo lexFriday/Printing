@@ -401,32 +401,29 @@ function PrintShell({
     setDownloading(true);
     try {
       const { default: jsPDF } = await import("jspdf");
-      const pdf = new jsPDF("p", "pt", quotePaper?.format ?? "letter");
+      const { default: html2canvas } = await import("html2canvas");
+      const element = document.querySelector(".quotation-print-document") as HTMLElement | null;
+      if (!element) throw new Error("Quotation print layout was not found.");
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const restoreImages = await inlinePrintImages(element);
+      const captureFrame = preparePdfCaptureFrame(element);
       try {
-        const { default: html2canvas } = await import("html2canvas");
-        const element = document.querySelector(".quotation-print-document") as HTMLElement | null;
-        if (!element) throw new Error("Quotation print layout was not found.");
-        await new Promise((resolve) => requestAnimationFrame(resolve));
-        const restoreImages = await inlinePrintImages(element);
-        const captureFrame = preparePdfCaptureFrame(element);
-        try {
-          const canvas = await html2canvas(captureFrame.target, {
-            backgroundColor: "#ffffff",
-            scale: 2,
-            useCORS: true,
-            logging: false,
-          });
-          addCanvasToPdf(pdf, canvas);
-        } finally {
-          captureFrame.cleanup();
-          restoreImages();
-        }
-      } catch (captureError) {
-        console.error(captureError);
-        toast.error(pdfDownloadErrorMessage(captureError));
-        return;
+        const canvas = await html2canvas(captureFrame.target, {
+          backgroundColor: "#ffffff",
+          scale: 2,
+          useCORS: true,
+          logging: false,
+        });
+        const pageWidthPt = 612;
+        const contentHeightPt = (canvas.height * pageWidthPt) / canvas.width;
+        const pageHeightPt = Math.max(792, Math.ceil(contentHeightPt));
+        const pdf = new jsPDF("p", "pt", [pageWidthPt, pageHeightPt]);
+        pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pageWidthPt, contentHeightPt);
+        pdf.save(safePdfName(pdfData.fileName));
+      } finally {
+        captureFrame.cleanup();
+        restoreImages();
       }
-      pdf.save(safePdfName(pdfData.fileName));
     } catch (error) {
       console.error(error);
       toast.error(pdfDownloadErrorMessage(error));
@@ -510,6 +507,7 @@ function PrintShell({
 
         .quotation-table tr {
           break-inside: avoid;
+          page-break-inside: avoid;
         }
 
         .quotation-print-footer,
@@ -575,41 +573,6 @@ function PrintShell({
       </div>
     </div>
   );
-}
-
-function addCanvasToPdf(pdf: JsPDF, canvas: HTMLCanvasElement) {
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const pageHeight = pdf.internal.pageSize.getHeight();
-  const pageCanvasHeight = Math.floor((canvas.width * pageHeight) / pageWidth);
-  const pageCanvas = document.createElement("canvas");
-  const context = pageCanvas.getContext("2d");
-  if (!context) throw new Error("Could not prepare PDF canvas.");
-
-  pageCanvas.width = canvas.width;
-
-  let sourceY = 0;
-  while (sourceY < canvas.height) {
-    const sliceHeight = Math.min(pageCanvasHeight, canvas.height - sourceY);
-    pageCanvas.height = sliceHeight;
-    context.fillStyle = "#ffffff";
-    context.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-    context.drawImage(
-      canvas,
-      0,
-      sourceY,
-      canvas.width,
-      sliceHeight,
-      0,
-      0,
-      canvas.width,
-      sliceHeight,
-    );
-
-    if (sourceY > 0) pdf.addPage();
-    const imageHeight = (sliceHeight * pageWidth) / canvas.width;
-    pdf.addImage(pageCanvas.toDataURL("image/png"), "PNG", 0, 0, pageWidth, imageHeight);
-    sourceY += sliceHeight;
-  }
 }
 
 function LineMeasurementCell({
