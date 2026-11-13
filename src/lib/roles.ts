@@ -24,7 +24,13 @@ export function canManageMoneyOut(role: AppRole | null) {
 }
 
 export function canCreateCustomerInvoices(role: AppRole | null) {
-  return role === "owner" || role === "admin" || role === "sales" || role === "accounting";
+  return (
+    role === "owner" ||
+    role === "admin" ||
+    role === "sales" ||
+    role === "accounting" ||
+    role === "staff"
+  );
 }
 
 export function canControlJobs(role: AppRole | null) {
