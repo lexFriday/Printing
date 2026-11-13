@@ -39,7 +39,6 @@ import { toast } from "sonner";
 import { logAudit } from "@/lib/audit";
 import { useAuth } from "@/hooks/useAuth";
 import { canAccountingWork } from "@/lib/roles";
-import { downloadInvoiceExcel } from "@/lib/invoiceExcelExport";
 
 const PAYMENT_PROOF_BUCKET = "invoice-payment-proofs";
 const PAYMENT_PROOF_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -358,33 +357,6 @@ function InvoiceDetails() {
     address: string | null;
     email: string | null;
   };
-  const downloadExcel = async () => {
-    try {
-      await downloadInvoiceExcel({
-        invoiceNumber: i.invoice_number,
-        invoiceDate: i.invoice_date,
-        customerName: cust.customer_name,
-        customerAddress: cust.address ?? "",
-        customerTin: (cust as { tin_number?: string | null }).tin_number ?? "",
-        clientPoNumber: jo?.client_po_number ?? "",
-        taxType: i.tax_type ?? "non_vat",
-        lines: lines.map((line) => ({
-          description: line.description,
-          quantity: Number(line.quantity ?? 0),
-          unit_price: Number(line.unit_price ?? 0),
-          line_total: Number(line.line_total ?? 0),
-        })),
-        grossTotal,
-        vatableSales,
-        vatAmount,
-        ewtAmount: ewtEnabled ? ewtAmount : 0,
-        amountDue,
-      });
-      toast.success("Excel invoice downloaded");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Excel invoice could not be downloaded.");
-    }
-  };
 
   return (
     <div className="space-y-5">
@@ -456,9 +428,6 @@ function InvoiceDetails() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => void downloadExcel()}>
-                Download Excel invoice
-              </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <button
                   type="button"
