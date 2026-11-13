@@ -1,3 +1,4 @@
+import { operationsDb } from "@/lib/operationsDatabase";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
@@ -80,7 +81,24 @@ type MaterialRow = {
 
 type MaterialOption = { id: string; name: string; unit: string; available?: number };
 type ProductionJob = Database["public"]["Tables"]["production_jobs"]["Row"];
-type ProductionTask = Database["public"]["Tables"]["production_tasks"]["Row"];
+// Mirrors public.production_tasks from supabase/migrations/20260904190000_production_line_item_tasks.sql.
+type ProductionTask = {
+  id: string;
+  job_order_id: string;
+  job_order_line_item_id: string;
+  task_type: string;
+  task_order: number;
+  department: string | null;
+  assignee_id: string | null;
+  priority: number;
+  due_at: string | null;
+  status: "not_started" | "in_progress" | "done" | "on_hold";
+  hold_reason: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
 type ItemRecipeSuggestion = {
   id: string;
   name: string;
@@ -240,7 +258,7 @@ export function ProductionWorkspace({
   const productionQuery = useQuery({
     queryKey: ["production-job", jobOrderId],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_production_job" as any, {
+      const { data, error } = await operationsDb.rpc("get_production_job" as any, {
         p_job_order_id: jobOrderId,
       });
       if (error) throw error;
@@ -306,7 +324,7 @@ export function ProductionWorkspace({
   const tasksQuery = useQuery({
     queryKey: ["production-tasks", jobOrderId],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("ensure_production_tasks" as any, {
+      const { data, error } = await operationsDb.rpc("ensure_production_tasks" as any, {
         p_job_order_id: jobOrderId,
       });
       if (error) throw error;
@@ -316,7 +334,7 @@ export function ProductionWorkspace({
   const itemReadinessQuery = useQuery({
     queryKey: ["production-item-readiness", jobOrderId],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("production_item_readiness" as any, {
+      const { data, error } = await operationsDb.rpc("production_item_readiness" as any, {
         p_job_order_id: jobOrderId,
       });
       if (error) throw error;
@@ -326,7 +344,7 @@ export function ProductionWorkspace({
   const exceptionsQuery = useQuery({
     queryKey: ["production-exceptions", jobOrderId],
     queryFn: async () => {
-      const { data, error } = await (supabase.from("production_material_exceptions") as any)
+      const { data, error } = await (operationsDb.from("production_material_exceptions") as any)
         .select("id,reason,status,created_at")
         .eq("job_order_id", jobOrderId)
         .order("created_at", { ascending: false });
@@ -337,7 +355,7 @@ export function ProductionWorkspace({
   const movementsQuery = useQuery({
     queryKey: ["production-movements", jobOrderId],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("production_material_activity", {
+      const { data, error } = await operationsDb.rpc("production_material_activity", {
         p_job_order_id: jobOrderId,
       });
       if (error) throw error;
@@ -347,7 +365,7 @@ export function ProductionWorkspace({
   const readinessQuery = useQuery({
     queryKey: ["production-material-readiness", jobOrderId],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("production_material_readiness" as any, {
+      const { data, error } = await operationsDb.rpc("production_material_readiness" as any, {
         p_job_order_id: jobOrderId,
       });
       if (error) throw error;
@@ -384,7 +402,7 @@ export function ProductionWorkspace({
   const purchaseRequestsQuery = useQuery({
     queryKey: ["production-purchase-requests", jobOrderId],
     queryFn: async () => {
-      const { data, error } = await (supabase.from("purchase_requests") as any)
+      const { data, error } = await (operationsDb.from("purchase_requests") as any)
         .select(
           "id,material_id,status,requested_quantity,received_quantity,ordered_at,expected_at,supplier_name",
         )
@@ -414,7 +432,7 @@ export function ProductionWorkspace({
     ]);
   const saveRemarks = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.rpc("update_production_remarks", {
+      const { data, error } = await operationsDb.rpc("update_production_remarks", {
         p_job_order_id: jobOrderId,
         p_remarks: remarks,
       });
@@ -453,7 +471,7 @@ export function ProductionWorkspace({
   });
   const plan = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.rpc("create_production_plan" as any, {
+      const { data, error } = await operationsDb.rpc("create_production_plan" as any, {
         p_job_order_id: jobOrderId,
         p_job_type: "general",
       });
@@ -487,7 +505,7 @@ export function ProductionWorkspace({
   });
   const start = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.rpc("start_production" as any, {
+      const { error } = await operationsDb.rpc("start_production" as any, {
         p_job_order_id: jobOrderId,
         p_idempotency_key: crypto.randomUUID(),
       });
@@ -515,7 +533,7 @@ export function ProductionWorkspace({
   });
   const reconcile = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.rpc("reconcile_production" as any, {
+      const { error } = await operationsDb.rpc("reconcile_production" as any, {
         p_job_order_id: jobOrderId,
         p_decision: "accept",
         p_reason: "Materials reviewed",
@@ -544,7 +562,7 @@ export function ProductionWorkspace({
   });
   const complete = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.rpc("complete_production" as any, {
+      const { error } = await operationsDb.rpc("complete_production" as any, {
         p_job_order_id: jobOrderId,
         p_idempotency_key: crypto.randomUUID(),
       });
@@ -573,7 +591,7 @@ export function ProductionWorkspace({
   });
   const approve = useMutation({
     mutationFn: async (exceptionId: string) => {
-      const { error } = await supabase.rpc("approve_material_exception" as any, {
+      const { error } = await operationsDb.rpc("approve_material_exception" as any, {
         p_exception_id: exceptionId,
         p_decision: "approved",
         p_reason: "Approved for local review",
@@ -595,7 +613,7 @@ export function ProductionWorkspace({
       status: string;
       holdReason?: string | null;
     }) => {
-      const { error } = await supabase.rpc("update_production_task" as any, {
+      const { error } = await operationsDb.rpc("update_production_task" as any, {
         p_task_id: id,
         p_status: status,
         p_hold_reason: holdReason ?? null,
@@ -646,7 +664,7 @@ export function ProductionWorkspace({
     mutationFn: async () => {
       if (!stepEditor) throw new Error("Choose an item to customize.");
       const steps = normalizeProductionSteps(stepEditor.steps);
-      const { error } = await supabase.rpc("save_custom_item_production_steps" as any, {
+      const { error } = await operationsDb.rpc("save_custom_item_production_steps" as any, {
         p_job_order_line_item_id: stepEditor.itemId,
         p_steps: steps,
       });
@@ -848,13 +866,13 @@ export function ProductionWorkspace({
     reservedQuantity: Number(row.reserved_quantity),
   }));
   const readiness = summarizeMaterialReadiness(readinessRows);
-  const readinessByMaterial = new Map(
+  const readinessByMaterial = new Map<string, any>(
     (readinessQuery.data ?? []).map((row: any) => [row.material_id, row]),
   );
-  const purchaseByMaterial = new Map(
+  const purchaseByMaterial = new Map<string, any>(
     (purchaseRequestsQuery.data ?? []).map((request: any) => [request.material_id, request]),
   );
-  const inventoryByMaterial = new Map(
+  const inventoryByMaterial = new Map<string, any>(
     (inventorySummaryQuery.data ?? []).map((material: any) => [material.material_id, material]),
   );
   const activityByMaterial = new Map<
@@ -1374,7 +1392,7 @@ export function ProductionWorkspace({
                   </Button>
                 ) : (
                   <Button size="lg" asChild>
-                    <Link to={`/jobs/${jobOrderId}`}>Open Job Order</Link>
+                    <Link to="/jobs/$id" params={{ id: jobOrderId }}>Open Job Order</Link>
                   </Button>
                 )
               ) : null}
@@ -2168,7 +2186,7 @@ export function ProductionWorkspace({
                 </Button>
               ) : (
                 <Button asChild>
-                  <Link to={`/jobs/${jobOrderId}`}>Open Job Order</Link>
+                  <Link to="/jobs/$id" params={{ id: jobOrderId }}>Open Job Order</Link>
                 </Button>
               )
             )}
@@ -2581,8 +2599,8 @@ export function ProductionWorkspace({
                     Suggested for {selectedMaterialLine?.description ?? "this item"}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {suggestedItemRecipe.name} · {suggestedItemRecipe.item_template_materials.length}{" "}
-                    material{suggestedItemRecipe.item_template_materials.length === 1 ? "" : "s"}
+                    {suggestedItemRecipe.name} · {(suggestedItemRecipe.item_template_materials ?? []).length}{" "}
+                    material{(suggestedItemRecipe.item_template_materials ?? []).length === 1 ? "" : "s"}
                   </p>
                 </div>
                 <Button

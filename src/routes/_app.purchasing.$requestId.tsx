@@ -1,3 +1,4 @@
+import { operationsDb } from "@/lib/operationsDatabase";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -37,7 +38,7 @@ function PurchaseDocument() {
   const q = useQuery({
     queryKey: ["purchase-document", requestId],
     queryFn: async () => {
-      const { data, error } = await (supabase.from("purchase_requests") as any)
+      const { data, error } = await (operationsDb.from("purchase_requests") as any)
         .select(
           "id,purchase_number,requested_quantity,received_quantity,status,supplier_name,supplier_id,ordered_quantity,ordered_at,expected_at,supplier_reference,created_at,job_order_id,material_id,materials(name,unit),job_orders(job_number,project_name)",
         )
@@ -61,7 +62,7 @@ function PurchaseDocument() {
   const receipts = useQuery({
     queryKey: ["purchase-receipts", requestId],
     queryFn: async () => {
-      const { data, error } = await (supabase.from("material_receipts") as any)
+      const { data, error } = await (operationsDb.from("material_receipts") as any)
         .select("id,quantity,received_at")
         .eq("purchase_request_id", requestId)
         .order("received_at", { ascending: false });
@@ -117,7 +118,7 @@ function PurchaseDocument() {
       setReceiveQuantity(null);
       const jobOrderId = (q.data as any)?.job_order_id as string | null;
       if (jobOrderId) {
-        const { data: readiness, error } = await supabase.rpc("production_material_readiness" as any, {
+        const { data: readiness, error } = await operationsDb.rpc("production_material_readiness" as any, {
           p_job_order_id: jobOrderId,
         });
         if (!error && !(readiness ?? []).some((row: any) => Number(row.shortage_quantity) > 0)) {
@@ -270,7 +271,7 @@ function PurchaseDocument() {
                 />
                 <Button
                   variant="outline"
-                  onClick={() => saveSupplier.mutate()}
+                  onClick={() => saveSupplier.mutate(undefined)}
                   disabled={saveSupplier.isPending}
                 >
                   Add

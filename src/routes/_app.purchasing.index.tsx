@@ -1,3 +1,4 @@
+import { operationsDb } from "@/lib/operationsDatabase";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
@@ -40,7 +41,7 @@ function PurchasingQueue() {
   const requests = useQuery({
     queryKey: ["purchase-requests", statusFilter],
     queryFn: async () => {
-      const { data, error } = await (supabase.from("purchase_requests") as any)
+      const { data, error } = await (operationsDb.from("purchase_requests") as any)
         .select(
           "id,purchase_number,job_order_id,requested_quantity,received_quantity,status,supplier_name,supplier_id,ordered_quantity,ordered_at,expected_at,created_at,materials(name,unit),job_orders(job_number,project_name)",
         )
@@ -58,7 +59,7 @@ function PurchasingQueue() {
     },
   });
   const requestRows = requests.data ?? [];
-  const productionByJob = new Map((production.data ?? []).map((job: any) => [job.job_order_id, job]));
+  const productionByJob = new Map<string, any>((production.data ?? []).map((job: any) => [job.job_order_id, job]));
   const prioritizedRows = [...requestRows].sort((left: any, right: any) => {
     const leftOpen = left.status !== "received" && left.status !== "cancelled";
     const rightOpen = right.status !== "received" && right.status !== "cancelled";
@@ -107,7 +108,7 @@ function PurchasingQueue() {
             No purchase requests yet.
           </Card>
         ) : (
-          <div className="space-y-3">{jobOrderGroups.map((group) => <Card key={group.jobOrderId} className="divide-y p-4 sm:p-5"><div className="pb-3"><p className="font-semibold">{group.jobNumber ?? "Job Order"}</p><p className="text-sm text-muted-foreground">{group.projectName || `${group.requestIds.length} material request${group.requestIds.length === 1 ? "" : "s"}`}</p></div>{group.requestIds.map((requestId) => <PurchaseRequestRow key={requestId} request={requestsById.get(requestId)} production={productionByJob.get(group.jobOrderId)} />)}</Card>)}</div>
+          <div className="space-y-3">{jobOrderGroups.map((group) => <Card key={group.jobOrderId} className="divide-y p-4 sm:p-5"><div className="pb-3"><p className="font-semibold">{group.jobNumber ?? "Job Order"}</p><p className="text-sm text-muted-foreground">{group.projectName || `${group.requestIds.length} material request${group.requestIds.length === 1 ? "" : "s"}`}</p></div>{group.requestIds.map((requestId) => <PurchaseRequestRow key={requestId} request={requestsById.get(requestId)} production={productionByJob.get(group.jobOrderId ?? "")} />)}</Card>)}</div>
         )}
       </section> : null}
       {standaloneRequests.length > 0 ? <section className="space-y-3" aria-labelledby="standalone-purchase-requests"><div><h2 id="standalone-purchase-requests" className="text-lg font-semibold">Standalone inventory requests</h2><p className="text-sm text-muted-foreground">General replenishment not tied to a Job Order.</p></div><Card className="divide-y p-4 sm:p-5">{standaloneRequests.map((request: any) => <PurchaseRequestRow key={request.id} request={request} />)}</Card></section> : null}

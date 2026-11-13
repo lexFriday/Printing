@@ -88,7 +88,8 @@ export async function uploadUserSignature(userId: string, file: File) {
 export async function removeUserSignature(userId: string) {
   const { error } = await supabase.rpc("set_user_signature", {
     p_target_user_id: userId,
-    p_object_path: null,
+    // The function clears the signature when given null; generated types only model text.
+    p_object_path: null as unknown as string,
   });
   if (error) throw error;
 }

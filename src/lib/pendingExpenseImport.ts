@@ -185,9 +185,9 @@ export async function parsePendingExpenseFile(file: File) {
     if (parsed.length && media?.content) {
       const bytes = media.content instanceof Uint8Array ? media.content : new Uint8Array(media.content);
       let binary = "";
-      bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+      bytes.forEach((byte: number) => { binary += String.fromCharCode(byte); });
       parsed[0].source_image_data = `data:${media.type || "image/jpeg"};base64,${btoa(binary)}`;
-      parsed[0].source_image_name = mediaKey.split("/").pop();
+      parsed[0].source_image_name = (mediaKey ?? "").split("/").pop();
     }
     return isLegacy ? parsed.filter((row) => row.description && Number.isFinite(row.amount) && row.amount > 0) : parsed;
   });

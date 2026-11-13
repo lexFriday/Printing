@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1794543617560,
+      "tag": "0000_pending_signup_approval",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794544006890,
+      "tag": "0001_index_audit_logs_user_id",
+      "breakpoints": true
+    }
+  ]
+}

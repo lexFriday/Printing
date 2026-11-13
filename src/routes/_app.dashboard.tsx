@@ -221,7 +221,7 @@ function Dashboard() {
       status: job.status,
       priority: 2,
       amount: fmtDate(job.target_completion_date),
-      action: job.status === "in_production" ? "Open production" : job.status === "ready_for_delivery" ? "Arrange delivery" : "Open job",
+      action: job.status === "in_production" ? "Open production" : job.status === "ready" ? "Arrange delivery" : "Open job",
       open: () => navigate({ to: "/jobs/$id", params: { id: job.id } }),
     })),
     ...receivables.map((invoice) => ({

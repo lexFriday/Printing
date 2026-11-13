@@ -6008,6 +6008,7 @@ function GeneralExpenseForm({
   const isPettyCashReceipt = Boolean(
     initialPettyCashBatch || f.petty_cash_batch_id || initialExpense?.petty_cash_batch_id,
   );
+  const pettyCashFundingSource = initialPettyCashBatch?.funding_source ?? null;
   const needsSupplierDetails =
     f.disbursement_category === "direct_materials" && !isPettyCashReceipt;
   const needsPaymentProof = ["bank_transfer", "gcash", "petty_cash"].includes(f.payment_method);
@@ -6083,7 +6084,7 @@ function GeneralExpenseForm({
       }
       const { data, error } = await supabase
         .from("suppliers")
-        .insert({ name, active: true })
+        .insert({ name, supplier_name: name, active: true })
         .select("id, name, tin_number, address")
         .single();
       if (error) throw error;
@@ -6268,7 +6269,7 @@ function GeneralExpenseForm({
               />
               <div className="min-w-0 flex-1">
                 <p className="font-semibold text-foreground">
-                  Paid from petty cash · {initialPettyCashBatch?.funding_source || "Cash advance"}
+                  Paid from petty cash · {pettyCashFundingSource || "Cash advance"}
                 </p>
                 <p className="mt-1 text-muted-foreground">
                   This receipt will be recorded against the selected petty-cash batch when you save
@@ -7262,7 +7263,7 @@ function GeneralExpenseForm({
           <div className="rounded-md border bg-muted/30 p-3 text-sm">
             <div className="text-muted-foreground">Paid from petty cash</div>
             <div className="font-medium">
-              {initialPettyCashBatch?.funding_source || "Cash advance"}
+              {pettyCashFundingSource || "Cash advance"}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
               This receipt is already paid and will reduce the selected batch balance.
@@ -8973,7 +8974,7 @@ function downloadPettyCashBatchCsv(batch: any) {
     receipt.amount ?? "",
   ]);
   const header = ["Petty cash no.", "Batch date", "Custodian", "Funding source", "Receipt date", "Supplier / payee", "Description", "Document", "Amount"];
-  const csv = [header, ...rows].map((row) => row.map((value) => csvEscape(String(value))).join(",")).join("\n");
+  const csv = [header, ...rows].map((row: unknown[]) => row.map((value) => csvEscape(String(value))).join(",")).join("\n");
   downloadCsv(csv, `${batch.petty_cash_number || "petty-cash-batch"}-receipts.csv`);
 }
 

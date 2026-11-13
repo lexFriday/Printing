@@ -65,6 +65,7 @@ function SuppliersPage() {
     if (!form.supplier_name.trim()) return toast.error("Supplier name is required.");
     const databasePayload = {
       name: form.supplier_name.trim(),
+      supplier_name: form.supplier_name.trim(),
       tin_number: form.tin?.trim() || null,
       address: form.address?.trim() || null,
       contact_person: form.contact_person?.trim() || null,

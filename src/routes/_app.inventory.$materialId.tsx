@@ -1,3 +1,4 @@
+import { operationsDb } from "@/lib/operationsDatabase";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -36,7 +37,7 @@ function InventoryDocument() {
           .eq("material_id", materialId)
           .order("created_at", { ascending: false })
           .limit(20),
-        (supabase.from("purchase_requests" as never) as any)
+        (operationsDb.from("purchase_requests" as never) as any)
           .select("id,requested_quantity,received_quantity,status,job_order_id,job_orders(job_number,project_name)")
           .eq("material_id", materialId)
           .neq("status", "cancelled"),
@@ -119,8 +120,9 @@ function InventoryDocument() {
     },
     onError: (error: Error) => toast.error(error.message || "Unable to correct stock"),
   });
-  if (q.isLoading) return <p>Loading inventory document…</p>;
+  if (q.isLoading || (!q.isError && !q.data)) return <p>Loading inventory document…</p>;
   if (q.isError) return <div className="flex flex-wrap items-center gap-3"><p className="text-destructive">Unable to load this material and its movement history.</p><Button variant="outline" size="sm" onClick={() => q.refetch()}>Retry</Button></div>;
+  if (!q.data) return null;
   const m = q.data.material as any,
     b = q.data.balance ?? {};
   const cards = [

@@ -152,14 +152,14 @@ export function ItemTemplatesPage({ navigation }: { navigation?: ReactNode } = {
       const payload = toPayload(draft);
       if (draft.id) {
         const current = templates.data?.find((template) => template.id === draft.id);
-        const { error } = await supabase.from("item_templates").update(payload).eq("id", draft.id);
+        const { error } = await supabase.from("item_templates").update(payload as TablesInsert<"item_templates">).eq("id", draft.id);
         if (error) throw error;
         await logAudit("item_template.updated", "item_template", draft.id, payload, current);
         return;
       }
       const { data, error } = await supabase
         .from("item_templates")
-        .insert(payload)
+        .insert(payload as TablesInsert<"item_templates">)
         .select("id")
         .single();
       if (error) throw error;
@@ -613,7 +613,17 @@ function toForm(template: TemplateRow): TemplateForm {
   };
 }
 
-function toPayload(form: TemplateForm): TablesInsert<"item_templates"> {
+// Per-sheet pricing columns are defined by the app but not yet present in the live
+// database, so they are only sent for per-sheet templates; manual templates save as before.
+type SheetPricingFields = {
+  pricing_basis: "per_sheet";
+  sheets_per_copy: number | null;
+  sheet_waste_percent: number;
+  sheet_pricing_profile_id: string | null;
+};
+type TemplatePayload = TablesInsert<"item_templates"> & Partial<SheetPricingFields>;
+
+function toPayload(form: TemplateForm): TemplatePayload {
   const name = form.name.trim();
   const description = form.description.trim();
   if (!name) throw new Error("Template name is required.");
@@ -624,6 +634,15 @@ function toPayload(form: TemplateForm): TablesInsert<"item_templates"> {
   const sheetsPerCopy = form.pricing_basis === "per_sheet" ? parseRequiredPositive(form.sheets_per_copy, "Sheets per finished copy") : null;
   const wastePercent = form.pricing_basis === "per_sheet" ? Number(form.sheet_waste_percent || 0) : 0;
   if (!Number.isFinite(wastePercent) || wastePercent < 0 || wastePercent > 100) throw new Error("Waste allowance must be between 0 and 100%.");
+  const sheetFields: Partial<SheetPricingFields> =
+    form.pricing_basis === "per_sheet"
+      ? {
+          pricing_basis: "per_sheet",
+          sheets_per_copy: sheetsPerCopy,
+          sheet_waste_percent: wastePercent,
+          sheet_pricing_profile_id: form.sheet_pricing_profile_id || null,
+        }
+      : {};
   if (form.pricing_mode === "sqft") {
     const rate = parseRequiredPositive(form.default_rate_per_sqft, "Default rate");
     return {
@@ -636,10 +655,7 @@ function toPayload(form: TemplateForm): TablesInsert<"item_templates"> {
       default_width: width,
       default_height: height,
       is_active: form.is_active,
-      pricing_basis: form.pricing_basis,
-      sheets_per_copy: sheetsPerCopy,
-      sheet_waste_percent: wastePercent,
-      sheet_pricing_profile_id: form.pricing_basis === "per_sheet" ? (form.sheet_pricing_profile_id || null) : null,
+      ...sheetFields,
     };
   }
 
@@ -654,10 +670,7 @@ function toPayload(form: TemplateForm): TablesInsert<"item_templates"> {
     default_width: width,
     default_height: height,
     is_active: form.is_active,
-    pricing_basis: form.pricing_basis,
-    sheets_per_copy: sheetsPerCopy,
-    sheet_waste_percent: wastePercent,
-    sheet_pricing_profile_id: form.pricing_basis === "per_sheet" ? (form.sheet_pricing_profile_id || null) : null,
+    ...sheetFields,
   };
 }
 

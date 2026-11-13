@@ -1,4 +1,7 @@
 import ExcelJS from "exceljs";
+
+// ExcelJS honours native (EMU-offset) anchors at runtime; its typings only model col/row.
+type NativeImageAnchor = ExcelJS.ImagePosition["tl"];
 import { COMPANY_PROFILE } from "./brand";
 import { fmtDate } from "./format";
 import { computeInclusiveVat } from "./calc";
@@ -257,7 +260,7 @@ export async function buildQuoteWorkbook(data: QuoteExcelExportPayload): Promise
   const ws = wb.addWorksheet("Quotation", {
     views: [{ showGridLines: true }],
     pageSetup: {
-      paperSize: 1, // Letter
+      paperSize: 1 as ExcelJS.PaperSize, // Letter
       orientation: "portrait",
       fitToPage: true,
       fitToWidth: 1,
@@ -312,7 +315,7 @@ export async function buildQuoteWorkbook(data: QuoteExcelExportPayload): Promise
           nativeColOff: logoAnchor.nativeColOff,
           nativeRow: 0,
           nativeRowOff: Math.round(topOffsetPx * EMUS_PER_PX),
-        },
+        } as unknown as NativeImageAnchor,
         ext: { width: logoFit.width, height: logoFit.height },
         editAs: "oneCell",
       });
@@ -545,7 +548,6 @@ export async function buildQuoteWorkbook(data: QuoteExcelExportPayload): Promise
       const photoData = att.buffer
         ? {
             buffer: att.buffer,
-            extension: "png" as const,
             ...parseImageDimensions(att.buffer),
           }
         : await loadImageData(att.signedUrl || att.base64);
@@ -577,7 +579,7 @@ export async function buildQuoteWorkbook(data: QuoteExcelExportPayload): Promise
               nativeColOff: Math.round(leftOffsetPx * EMUS_PER_PX),
               nativeRow: currentRow - 1,
               nativeRowOff: Math.round((measurement !== "N/A" ? 20 : 6) * EMUS_PER_PX),
-            },
+            } as unknown as NativeImageAnchor,
             ext: { width: photoFit.width, height: photoFit.height },
             editAs: "oneCell",
           });
@@ -770,7 +772,7 @@ export async function buildQuoteWorkbook(data: QuoteExcelExportPayload): Promise
             nativeColOff: sigAnchor.nativeColOff,
             nativeRow: sigSpaceRow - 1,
             nativeRowOff: 45000,
-          },
+          } as unknown as NativeImageAnchor,
           ext: { width: sigFit.width, height: sigFit.height },
           editAs: "oneCell",
         });

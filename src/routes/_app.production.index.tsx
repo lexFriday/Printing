@@ -1,3 +1,4 @@
+import { operationsDb } from "@/lib/operationsDatabase";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -49,7 +50,7 @@ function ProductionPage() {
     queryKey: ["production-workspace-queue"],
     refetchInterval: 15_000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("production_queue" as any);
+      const { data, error } = await operationsDb.rpc("production_queue" as any);
       if (error) throw error;
       return (data ?? []).map((item: any) => ({
         ...item,
