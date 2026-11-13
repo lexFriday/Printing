@@ -38,11 +38,26 @@ export async function probeHost(
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
-    const res = await fetch(`http://${clean}:${DEFAULT_PORT}/health`, {
-      method: "GET",
-      signal: controller.signal,
-      headers: { Accept: "application/json" },
-    });
+    const url = `http://${clean}:${DEFAULT_PORT}/health`;
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: "GET",
+        signal: controller.signal,
+        headers: { Accept: "application/json" },
+      });
+    } catch (firstErr) {
+      if (clean === "127.0.0.1" || clean === "localhost") {
+        res = await fetch(url, {
+          method: "GET",
+          signal: controller.signal,
+          headers: { Accept: "application/json" },
+          targetAddressSpace: "local",
+        } as RequestInit);
+      } else {
+        throw firstErr;
+      }
+    }
     clearTimeout(timer);
     if (res.ok) {
       const data = (await res.json().catch(() => ({}))) as AgentInfo;
@@ -238,11 +253,22 @@ export function usePrintAgent() {
     pdfBase64?: string;
   }) => {
     try {
-      const res = await fetch(`${getAgentUrl()}/print`, {
+      const url = `${getAgentUrl()}/print`;
+      const init: RequestInit = {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-      });
+      };
+      let res: Response;
+      try {
+        res = await fetch(url, init);
+      } catch (firstErr) {
+        if (host === "127.0.0.1" || host === "localhost") {
+          res = await fetch(url, { ...init, targetAddressSpace: "local" } as RequestInit);
+        } else {
+          throw firstErr;
+        }
+      }
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || "Failed to trigger print job");

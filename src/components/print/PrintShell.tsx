@@ -45,6 +45,15 @@ export function usePrintCalibrationContext() {
   return useContext(PrintCalibrationContext);
 }
 
+function isHelperOutdated(version?: string): boolean {
+  if (!version) return false;
+  const match = version.match(/(\d+)\.(\d+)/);
+  if (!match) return false;
+  const major = Number(match[1]);
+  const minor = Number(match[2]);
+  return major < 2 || (major === 2 && minor < 5);
+}
+
 export function PrintShell({
   backTo,
   backParams,
@@ -410,8 +419,7 @@ export function PrintShell({
       {/* Update notification when running print agent is older than v2.5 */}
       {directPrintJob &&
       printAgent.isRunning &&
-      printAgent.version &&
-      !printAgent.version.includes("2.5") ? (
+      isHelperOutdated(printAgent.version) ? (
         <div className="print-agent-alert mx-auto mb-3.5 flex max-w-[8.5in] flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-amber-200/90 bg-amber-50/95 px-4 py-2.5 shadow-xs text-xs text-amber-950 backdrop-blur-xs">
           <div className="flex items-center gap-2.5">
             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-200/80 text-amber-800">
@@ -786,12 +794,11 @@ export function PrintShell({
                     );
                     return;
                   }
-                  if (printAgent.version && !printAgent.version.includes("2.5")) {
-                    toast.error(
-                      `Your computer is running older print helper v${printAgent.version} (which adds asterisks). Click 'Quit Old Helper' in the top banner and open the new v2.5 helper!`,
-                      { duration: 8000 },
+                  if (isHelperOutdated(printAgent.version)) {
+                    toast.warning(
+                      `Your computer is running older print helper v${printAgent.version}. Consider updating to v2.5 using the top banner.`,
+                      { duration: 6000 },
                     );
-                    return;
                   }
                   setPdfAction("direct");
                   try {
