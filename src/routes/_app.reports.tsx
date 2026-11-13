@@ -2229,39 +2229,170 @@ function Reports() {
   };
 
   const exportPettyCashBatchExcel = async (batch: any) => {
+    const { default: ExcelJS } = await import("exceljs");
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Petty Cash", {
+      pageSetup: { paperSize: 9, orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+    });
+
+    ws.columns = [
+      { width: 14 },
+      { width: 48 },
+      { width: 22 },
+      { width: 16 },
+    ];
+
+    const thinBorder: Partial<ExcelJS.Borders> = {
+      top: { style: "thin", color: { argb: "FF777777" } },
+      left: { style: "thin", color: { argb: "FF777777" } },
+      bottom: { style: "thin", color: { argb: "FF777777" } },
+      right: { style: "thin", color: { argb: "FF777777" } },
+    };
+
+    ws.mergeCells("A1:D1");
+    const companyCell = ws.getCell("A1");
+    companyCell.value = "ARLECHINO CONCEPTS INC";
+    companyCell.font = { name: "Arial", size: 13, bold: true };
+    companyCell.alignment = { horizontal: "center", vertical: "middle" };
+
+    ws.mergeCells("A2:D2");
+    const titleCell = ws.getCell("A2");
+    titleCell.value = "PETTY CASH";
+    titleCell.font = { name: "Arial", size: 11, bold: true };
+    titleCell.alignment = { horizontal: "center", vertical: "middle" };
+
+    ws.mergeCells("A3:D3");
+    const metaCell = ws.getCell("A3");
+    metaCell.value = `Petty cash no.: ${batch.petty_cash_number ?? "—"}   |   Custodian: ${batch.custodian_name ?? "—"}   |   Report date: ${batch.funding_date ?? "—"}`;
+    metaCell.font = { name: "Arial", size: 10 };
+    metaCell.alignment = { horizontal: "center", vertical: "middle" };
+
+    const headerRow = ws.addRow(["DATE", "PETTY CASH", "ALLOCATION", "AMOUNT"]);
+    headerRow.eachCell((cell, colNumber) => {
+      cell.font = { name: "Arial", size: 10, bold: true };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE8EEF5" } };
+      cell.border = thinBorder;
+      cell.alignment = { horizontal: colNumber === 4 ? "right" : "left", vertical: "middle" };
+    });
+
+    const total = (batch.receipts ?? []).reduce((sum: number, receipt: any) => sum + Number(receipt.amount ?? 0), 0);
+    const starting = Number(batch.funding_total ?? batch.cash_received ?? 0);
+    const balance = starting - total;
+
+    const startRow = ws.addRow(["", `PETTY CASH (${batch.funding_date ?? ""})`, "", starting]);
+    startRow.eachCell((cell, colNumber) => {
+      cell.font = { name: "Arial", size: 10, bold: colNumber === 2 };
+      cell.border = thinBorder;
+      if (colNumber === 4) {
+        cell.numFmt = "#,##0.00";
+        cell.alignment = { horizontal: "right", vertical: "top" };
+      }
+    });
+
+    for (const receipt of batch.receipts ?? []) {
+      const allocation =
+        receipt.allocations?.length > 1
+          ? "Shared across JOs"
+          : receipt.allocations?.[0]?.job_order?.job_number || receipt.job_order?.job_number || "Company expense";
+      const details =
+        [
+          receipt.supplier_name,
+          receipt.description,
+          receipt.supplier_document_no ? `Document: ${receipt.supplier_document_no}` : "",
+        ]
+          .filter(Boolean)
+          .join(" ") || "—";
+      const row = ws.addRow([receipt.expense_date ?? "", details, allocation, Number(receipt.amount ?? 0)]);
+      row.eachCell((cell, colNumber) => {
+        cell.font = { name: "Arial", size: 10 };
+        cell.border = thinBorder;
+        cell.alignment = {
+          horizontal: colNumber === 4 ? "right" : "left",
+          vertical: "top",
+          wrapText: true,
+        };
+        if (colNumber === 4) cell.numFmt = "#,##0.00";
+      });
+    }
+
+    ws.addRow([]);
+
+    const summaryRows: Array<[string, number, boolean]> = [
+      ["Total", total, false],
+      [
+        `Petty Cash — ${batch.funding_source ?? ""}${batch.funding_reference ? ` (${batch.funding_reference})` : ""}`,
+        starting,
+        false,
+      ],
+      ["Cash Balance", balance, balance < 0],
+    ];
+    for (const [label, amount, isNegative] of summaryRows) {
+      const row = ws.addRow(["", "", label, amount]);
+      row.getCell(3).font = { name: "Arial", size: 10, bold: true };
+      row.getCell(3).border = thinBorder;
+      row.getCell(3).alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+      const amtCell = row.getCell(4);
+      amtCell.value = amount;
+      amtCell.numFmt = "#,##0.00";
+      amtCell.border = thinBorder;
+      amtCell.alignment = { horizontal: "right", vertical: "middle" };
+      amtCell.font = isNegative
+        ? { name: "Arial", size: 10, bold: true, color: { argb: "FFC00000" } }
+        : { name: "Arial", size: 10 };
+    }
+
     const attachments = await Promise.all(
       (batch.attachments ?? []).map(async (attachment: any) => {
         const { data } = await supabase.storage
           .from("petty-cash-batch-attachments")
           .createSignedUrl(attachment.storage_path, 3600);
-        let image = "";
-        if (data?.signedUrl) {
-          try {
-            const response = await fetch(data.signedUrl);
-            const blob = await response.blob();
-            image = await new Promise<string>((resolve) => {
-              const reader = new FileReader();
-              reader.onload = () => resolve(String(reader.result ?? ""));
-              reader.onerror = () => resolve("");
-              reader.readAsDataURL(blob);
-            });
-          } catch { /* keep export usable when an image cannot be fetched */ }
+        if (!data?.signedUrl) return null;
+        try {
+          const response = await fetch(data.signedUrl);
+          const blob = await response.blob();
+          const mime = blob.type.toLowerCase();
+          const extension: "png" | "jpeg" | "gif" | null =
+            mime.includes("png") ? "png" : mime.includes("gif") ? "gif" : mime.includes("jpeg") || mime.includes("jpg") ? "jpeg" : null;
+          if (!extension) return null;
+          const base64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result ?? ""));
+            reader.onerror = () => resolve("");
+            reader.readAsDataURL(blob);
+          });
+          if (!base64) return null;
+          return { name: attachment.file_name, extension, base64 };
+        } catch {
+          return null;
         }
-        return { name: attachment.file_name, url: data?.signedUrl ?? "", image };
       }),
     );
-    const esc = (value: unknown) => String(value ?? "").replace(/[&<>\"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char] ?? char));
-    const total = (batch.receipts ?? []).reduce((sum: number, receipt: any) => sum + Number(receipt.amount ?? 0), 0);
-    const starting = Number(batch.funding_total ?? batch.cash_received ?? 0);
-    const rows = (batch.receipts ?? []).map((receipt: any) => { const allocation = receipt.allocations?.length > 1 ? "Shared across JOs" : receipt.allocations?.[0]?.job_order?.job_number || receipt.job_order?.job_number || "Company expense"; return `<tr><td>${esc(receipt.expense_date)}</td><td>${esc([receipt.supplier_name, receipt.description, receipt.supplier_document_no ? `Document: ${receipt.supplier_document_no}` : ""].filter(Boolean).join(" ") || "—")}</td><td>${esc(allocation)}</td><td class="amount">${Number(receipt.amount ?? 0).toFixed(2)}</td></tr>`; }).join("");
-    const images = attachments.filter((attachment) => attachment.image).map((attachment) => `<div><strong>${esc(attachment.name)}</strong><br><img src="${attachment.image}" style="max-width:500px;max-height:700px;"></div>`).join("");
-    const balance = starting - total;
-    const html = `<html><head><meta charset="utf-8"><style>body{font-family:Arial;margin:24px}table{border-collapse:collapse;width:100%;table-layout:fixed}th,td{border:1px solid #777;padding:7px;vertical-align:top;word-wrap:break-word}th{background:#e8eef5}.amount{text-align:right;width:18%}.date{width:20%}.negative{color:#c00000;font-weight:bold}h2,h3{text-align:center;margin:4px}.meta{text-align:center;margin:8px 0 16px}.summary{margin-top:16px;margin-left:auto;width:55%}.summary td:first-child{font-weight:bold}.image{max-width:640px;max-height:900px;display:block;margin:8px 0 20px}</style></head><body><h2>ARLECHINO CONCEPTS INC</h2><h3>PETTY CASH</h3><div class="meta"><b>Petty cash no.:</b> ${esc(batch.petty_cash_number)} &nbsp; <b>Custodian:</b> ${esc(batch.custodian_name)} &nbsp; <b>Report date:</b> ${esc(batch.funding_date)}</div><table><thead><tr><th class="date">DATE</th><th>PETTY CASH</th><th class="amount">AMOUNT</th></tr></thead><tbody><tr><td></td><td><b>PETTY CASH (${esc(batch.funding_date)})</b></td><td class="amount">${starting.toFixed(2)}</td></tr>${rows}</tbody></table><table class="summary"><tr><td>Total</td><td class="amount">${total.toFixed(2)}</td></tr><tr><td>Petty Cash — ${esc(batch.funding_source)}${batch.funding_reference ? ` (${esc(batch.funding_reference)})` : ""}</td><td class="amount">${starting.toFixed(2)}</td></tr><tr><td>Cash Balance</td><td class="amount ${balance < 0 ? "negative" : ""}">${balance.toFixed(2)}</td></tr></table><h3>Uploaded supporting images</h3>${images || "<p>No images uploaded.</p>"}</body></html>`;
-    const printHtml = html.replace(
-      "<head>",
-      "<head><style>@page{size:A4 portrait;margin:12mm}body{max-width:760px;font-size:11px}table{max-width:760px;font-size:10px}th,td{padding:3px 5px;line-height:1.1}.summary{page-break-before:always;page-break-inside:avoid;break-inside:avoid;display:table}.summary tr{page-break-inside:avoid;break-inside:avoid}</style>",
-    ).replace('<th class="amount">AMOUNT</th>', '<th>ALLOCATION</th><th class="amount">AMOUNT</th>');
-    downloadBlob(new Blob([printHtml], { type: "text/html;charset=utf-8" }), `${batch.petty_cash_number || "petty-cash-batch"}.html`);
+
+    const validImages = attachments.filter((item): item is NonNullable<typeof item> => Boolean(item));
+    if (validImages.length > 0) {
+      ws.addRow([]);
+      const imgHeader = ws.addRow(["Uploaded supporting images"]);
+      imgHeader.getCell(1).font = { name: "Arial", size: 11, bold: true };
+      for (const img of validImages) {
+        const labelRow = ws.addRow([img.name]);
+        labelRow.getCell(1).font = { name: "Arial", size: 10, bold: true };
+        const imageId = wb.addImage({ base64: img.base64, extension: img.extension });
+        const startRowIdx = ws.rowCount;
+        ws.addImage(imageId, {
+          tl: { col: 0, row: startRowIdx },
+          ext: { width: 420, height: 320 },
+        });
+        for (let i = 0; i < 18; i += 1) ws.addRow([]);
+      }
+    }
+
+    const buffer = await wb.xlsx.writeBuffer();
+    downloadBlob(
+      new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+      `${batch.petty_cash_number || "petty-cash-batch"}.xlsx`,
+    );
   };
 
   const addCashSale = useMutation({
