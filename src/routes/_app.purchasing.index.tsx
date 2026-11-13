@@ -1,3 +1,4 @@
+import { operationsDb } from "@/lib/operationsDatabase";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
@@ -40,7 +41,7 @@ function PurchasingQueue() {
   const requests = useQuery({
     queryKey: ["purchase-requests", statusFilter],
     queryFn: async () => {
-      const { data, error } = await (supabase.from("purchase_requests") as any)
+      const { data, error } = await (operationsDb.from("purchase_requests") as any)
         .select(
           "id,purchase_number,job_order_id,requested_quantity,received_quantity,status,supplier_name,supplier_id,ordered_quantity,ordered_at,expected_at,created_at,materials(name,unit),job_orders(job_number,project_name)",
         )
@@ -58,7 +59,7 @@ function PurchasingQueue() {
     },
   });
   const requestRows = requests.data ?? [];
-  const productionByJob = new Map((production.data ?? []).map((job: any) => [job.job_order_id, job]));
+  const productionByJob = new Map<string, any>((production.data ?? []).map((job: any) => [job.job_order_id, job]));
   const prioritizedRows = [...requestRows].sort((left: any, right: any) => {
     const leftOpen = left.status !== "received" && left.status !== "cancelled";
     const rightOpen = right.status !== "received" && right.status !== "cancelled";

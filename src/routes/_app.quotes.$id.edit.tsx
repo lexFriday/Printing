@@ -587,8 +587,11 @@ function EditQuote() {
         } as never,
       );
       if (lineError) throw lineError;
-      if (savedLines) {
-        const savedIdsByOrder = new Map(savedLines.map((line) => [line.sort_order ?? 0, line.id]));
+      const savedRows = savedLines as unknown as Array<{ id: string; sort_order: number | null }> | null;
+      if (savedRows) {
+        const savedIdsByOrder = new Map<number, string>(
+          savedRows.map((line) => [line.sort_order ?? 0, line.id]),
+        );
         const imageUploads = lines.flatMap((line, index) => {
           const lineId = line.id ?? savedIdsByOrder.get(index);
           if (!line.reference_file || !lineId) return [];

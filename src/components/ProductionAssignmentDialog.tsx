@@ -1,3 +1,4 @@
+import { operationsDb } from "@/lib/operationsDatabase";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search } from "lucide-react";
@@ -58,7 +59,7 @@ export function ProductionAssignmentDialog({
     queryKey: ["production-assignment-options"],
     enabled: Boolean(item),
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("production_assignment_options");
+      const { data, error } = await operationsDb.rpc("production_assignment_options");
       if (error) throw error;
       return (data ?? []) as Worker[];
     },
@@ -84,7 +85,7 @@ export function ProductionAssignmentDialog({
       return;
     }
     setSaving(true);
-    const { error } = await supabase.rpc("set_production_item_assignments", {
+    const { error } = await operationsDb.rpc("set_production_item_assignments", {
       p_job_order_line_item_id: item.jobOrderLineItemId,
       p_user_ids: [...new Set(selectedIds)],
       p_expected_user_ids: expectedIds,
@@ -92,7 +93,7 @@ export function ProductionAssignmentDialog({
     setSaving(false);
     if (error) {
       if (/changed since you opened/i.test(error.message ?? "")) {
-        const { data: latest, error: refreshError } = await supabase
+        const { data: latest, error: refreshError } = await operationsDb
           .from("production_item_assignments")
           .select("user_id")
           .eq("job_order_line_item_id", item.jobOrderLineItemId)

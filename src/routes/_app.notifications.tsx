@@ -1,3 +1,4 @@
+import { operationsDb } from "@/lib/operationsDatabase";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,14 +12,14 @@ function NotificationsPage() {
   const notifications = useQuery({
     queryKey: ["notifications-inbox"],
     queryFn: async () => {
-      const { data, error } = await (supabase.from("user_notifications") as any)
+      const { data, error } = await (operationsDb.from("user_notifications") as any)
         .select("*").is("archived_at", null).order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
   });
   const markRead = async (id: string) => {
-    await (supabase.from("user_notifications") as any).update({ read_at: new Date().toISOString() }).eq("id", id);
+    await (operationsDb.from("user_notifications") as any).update({ read_at: new Date().toISOString() }).eq("id", id);
     notifications.refetch();
   };
   return <div className="space-y-6">
