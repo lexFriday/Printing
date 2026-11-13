@@ -108,7 +108,7 @@ function PurchasingQueue() {
             No purchase requests yet.
           </Card>
         ) : (
-          <div className="space-y-3">{jobOrderGroups.map((group) => <Card key={group.jobOrderId} className="divide-y p-4 sm:p-5"><div className="pb-3"><p className="font-semibold">{group.jobNumber ?? "Job Order"}</p><p className="text-sm text-muted-foreground">{group.projectName || `${group.requestIds.length} material request${group.requestIds.length === 1 ? "" : "s"}`}</p></div>{group.requestIds.map((requestId) => <PurchaseRequestRow key={requestId} request={requestsById.get(requestId)} production={productionByJob.get(group.jobOrderId)} />)}</Card>)}</div>
+          <div className="space-y-3">{jobOrderGroups.map((group) => <Card key={group.jobOrderId} className="divide-y p-4 sm:p-5"><div className="pb-3"><p className="font-semibold">{group.jobNumber ?? "Job Order"}</p><p className="text-sm text-muted-foreground">{group.projectName || `${group.requestIds.length} material request${group.requestIds.length === 1 ? "" : "s"}`}</p></div>{group.requestIds.map((requestId) => <PurchaseRequestRow key={requestId} request={requestsById.get(requestId)} production={productionByJob.get(group.jobOrderId ?? "")} />)}</Card>)}</div>
         )}
       </section> : null}
       {standaloneRequests.length > 0 ? <section className="space-y-3" aria-labelledby="standalone-purchase-requests"><div><h2 id="standalone-purchase-requests" className="text-lg font-semibold">Standalone inventory requests</h2><p className="text-sm text-muted-foreground">General replenishment not tied to a Job Order.</p></div><Card className="divide-y p-4 sm:p-5">{standaloneRequests.map((request: any) => <PurchaseRequestRow key={request.id} request={request} />)}</Card></section> : null}

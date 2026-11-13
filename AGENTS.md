@@ -5,3 +5,4 @@
 - SECURITY DEFINER functions must be owned by postgres, because other owners cannot evaluate auth.uid().
 - Account requests and approvals run through the existing request-account and manage-user-request backend functions; new signups stay inactive with no role until an owner/admin accepts them.
 - Keep an index on every audit_logs foreign key to auth.users, because the audit history is large and account removal otherwise times out.
+- Code that touches tables/functions defined only in supabase/migrations (not yet in the live database) goes through operationsDb in src/lib/operationsDatabase.ts, because the generated types reflect the live database; switch callers back to the typed client once the schema exists.
