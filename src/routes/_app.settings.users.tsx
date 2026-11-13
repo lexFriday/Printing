@@ -7,7 +7,9 @@ import {
   Save,
   Trash2,
   Upload,
+  UserCheck,
   Users,
+  X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { EmptyState, LoadingRow, PageHeader } from "@/components/system";
@@ -94,6 +96,8 @@ function UsersPage() {
   const [signatureDraft, setSignatureDraft] = useState<SignatureDraft | null>(null);
   const [removeTarget, setRemoveTarget] = useState<UserRow | null>(null);
   const [nameDrafts, setNameDrafts] = useState<Record<string, string>>({});
+  const [pendingRoles, setPendingRoles] = useState<Record<string, AppRole>>({});
+  const [refuseTarget, setRefuseTarget] = useState<UserRow | null>(null);
 
   useEffect(
     () => () => {
@@ -169,6 +173,52 @@ function UsersPage() {
     onSuccess: () => {
       toast.success("User status updated");
       qc.invalidateQueries({ queryKey: ["settings-users"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const manageRequest = useMutation({
+    mutationFn: async (
+      params:
+        | { action: "accept"; userId: string; role: AppRole }
+        | { action: "refuse"; userId: string },
+    ) => {
+      const current = users.data?.find((u) => u.id === params.userId);
+      const { error } = await supabase.functions.invoke("manage-user-request", {
+        body: params,
+      });
+      if (error) {
+        let message = error.message;
+        const context = (error as { context?: Response }).context;
+        if (context) {
+          try {
+            const payload = (await context.json()) as { error?: string };
+            if (payload?.error) message = payload.error;
+          } catch {
+            // ignore non-JSON error body
+          }
+        }
+        throw new Error(message);
+      }
+      await logAudit(
+        params.action === "accept" ? "user.request_accepted" : "user.request_refused",
+        "user",
+        params.userId,
+        params.action === "accept"
+          ? { role: params.role, status: "active" }
+          : { refused: true, email: current?.email },
+        { status: current?.status, role: current?.role },
+      );
+    },
+    onSuccess: (_data, vars) => {
+      toast.success(
+        vars.action === "accept"
+          ? "Account approved and role assigned"
+          : "Account request refused and removed",
+      );
+      setRefuseTarget(null);
+      qc.invalidateQueries({ queryKey: ["settings-users"] });
+      qc.invalidateQueries({ queryKey: ["pending-user-count"] });
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -250,6 +300,94 @@ function UsersPage() {
           </div>
         }
       />
+
+      {canManage &&
+      (users.data ?? []).some((u) => u.status === "inactive" && !u.role) ? (
+        <Card className="min-w-0 max-w-full overflow-hidden border-amber-200 bg-amber-50/40 p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">
+                Pending account requests
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Accept a request and assign a role to grant workspace access, or refuse to remove it.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {(users.data ?? [])
+              .filter((u) => u.status === "inactive" && !u.role)
+              .map((reqUser) => {
+                const chosenRole = pendingRoles[reqUser.id] ?? "staff";
+                return (
+                  <div
+                    key={reqUser.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-background px-3 py-2.5"
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium">
+                        {reqUser.display_name ?? "Unnamed user"}
+                      </div>
+                      <div className="truncate text-xs text-muted-foreground">
+                        {reqUser.email} · Requested {fmtDate(reqUser.created_at)}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Select
+                        value={chosenRole}
+                        onValueChange={(val) =>
+                          setPendingRoles((prev) => ({
+                            ...prev,
+                            [reqUser.id]: val as AppRole,
+                          }))
+                        }
+                      >
+                        <SelectTrigger className="h-9 w-[150px]">
+                          <SelectValue placeholder="Assign role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="owner">Owner</SelectItem>
+                          <SelectItem value="admin">Admin Staff</SelectItem>
+                          <SelectItem value="sales">Sales</SelectItem>
+                          <SelectItem value="staff">Staff</SelectItem>
+                          <SelectItem value="accounting">Accounting</SelectItem>
+                          <SelectItem value="production">Production</SelectItem>
+                          <SelectItem value="viewer">Viewer</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={manageRequest.isPending}
+                        onClick={() =>
+                          manageRequest.mutate({
+                            action: "accept",
+                            userId: reqUser.id,
+                            role: chosenRole,
+                          })
+                        }
+                      >
+                        <UserCheck className="mr-1.5 h-4 w-4" />
+                        Accept
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="text-destructive hover:text-destructive"
+                        disabled={manageRequest.isPending}
+                        onClick={() => setRefuseTarget(reqUser)}
+                      >
+                        <X className="mr-1.5 h-4 w-4" />
+                        Refuse
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </Card>
+      ) : null}
 
       <Card className="min-w-0 max-w-full overflow-hidden p-4">
           <div className={canManage ? "mb-4 max-w-sm" : "mb-4 max-w-xl"}>
@@ -361,6 +499,7 @@ function UsersPage() {
                           <SelectItem value="owner">Owner</SelectItem>
                           <SelectItem value="admin">Admin Staff</SelectItem>
                           <SelectItem value="sales">Sales</SelectItem>
+                          <SelectItem value="staff">Staff</SelectItem>
                           <SelectItem value="accounting">Accounting</SelectItem>
                           <SelectItem value="production">Production</SelectItem>
                           <SelectItem value="viewer">Viewer</SelectItem>
@@ -494,6 +633,37 @@ function UsersPage() {
               }}
             >
               {updateSignature.isPending ? "Removing…" : "Remove signature"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog
+        open={Boolean(refuseTarget)}
+        onOpenChange={(open) => {
+          if (!open && !manageRequest.isPending) setRefuseTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Refuse account request?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove {refuseTarget?.display_name ?? refuseTarget?.email ?? "this account"} so they cannot sign in.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={manageRequest.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!refuseTarget || manageRequest.isPending}
+              onClick={(event) => {
+                event.preventDefault();
+                if (refuseTarget) {
+                  manageRequest.mutate({ action: "refuse", userId: refuseTarget.id });
+                }
+              }}
+            >
+              {manageRequest.isPending ? "Refusing…" : "Refuse & remove"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

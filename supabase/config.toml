@@ -14,3 +14,9 @@ port = 59424
 
 [analytics]
 port = 59427
+
+[functions.request-account]
+verify_jwt = false
+
+[functions.manage-user-request]
+verify_jwt = false

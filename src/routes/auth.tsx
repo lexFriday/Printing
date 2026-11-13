@@ -56,16 +56,34 @@ function AuthPage() {
         if (error) throw error;
         toast.success("Welcome back");
       } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/dashboard`,
-            data: { display_name: name },
+        const { data, error } = await supabase.functions.invoke("request-account", {
+          body: {
+            email: email.trim(),
+            password,
+            displayName: name.trim(),
           },
         });
-        if (error) throw error;
-        toast.success("Account created. You can sign in now.");
+        if (error) {
+          let message = error.message;
+          const context = (error as { context?: Response }).context;
+          if (context) {
+            try {
+              const payload = (await context.json()) as { error?: string };
+              if (payload?.error) message = payload.error;
+            } catch {
+              // ignore non-JSON error body
+            }
+          }
+          throw new Error(message);
+        }
+        if (data?.pendingApproval === false) {
+          toast.success("Owner account created. You can sign in now.");
+        } else {
+          toast.success(
+            "Account request submitted. An admin must accept your account and assign a role before you can use it.",
+          );
+        }
+        setPassword("");
         setMode("signin");
       }
     } catch (err) {
@@ -271,7 +289,7 @@ function AuthPage() {
                         {busy ? "Creating..." : "Create account"}
                       </Button>
                       <p className="text-center text-xs leading-5 text-slate-500">
-                        First account becomes admin automatically.
+                        New accounts require admin approval and role assignment before workspace access.
                       </p>
                     </form>
                   </TabsContent>

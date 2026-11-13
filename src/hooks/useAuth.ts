@@ -18,11 +18,13 @@ import {
 } from "@/lib/appVersion";
 
 export type AppRole = Database["public"]["Enums"]["app_role"];
+export type ProfileStatus = Database["public"]["Enums"]["user_status"];
 
 type AuthState = {
   session: Session | null;
   user: User | null;
   role: AppRole | null;
+  profileStatus: ProfileStatus | null;
   roleError: string | null;
   roleLoading: boolean;
   loading: boolean;
@@ -54,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
+  const [profileStatus, setProfileStatus] = useState<ProfileStatus | null>(null);
   const [roleError, setRoleError] = useState<string | null>(null);
   const [roleLoading, setRoleLoading] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -95,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(null);
         setUser(null);
         setRole(null);
+        setProfileStatus(null);
         setRoleError(null);
         setRoleLoading(false);
         setLoading(false);
@@ -124,17 +128,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
 
       let data: { role: AppRole } | null = null;
+      let statusData: { status: ProfileStatus } | null = null;
       let error: { message?: string; code?: string } | null = null;
 
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
-          const result = await withTimeout(
-            supabase.from("user_roles").select("role").eq("user_id", s.user.id).maybeSingle(),
+          const [roleResult, profileResult] = await withTimeout(
+            Promise.all([
+              supabase.from("user_roles").select("role").eq("user_id", s.user.id).maybeSingle(),
+              supabase.from("profiles").select("status").eq("id", s.user.id).maybeSingle(),
+            ]),
             8000,
             "Role lookup",
           );
-          data = result.data as { role: AppRole } | null;
-          error = result.error;
+          data = roleResult.data as { role: AppRole } | null;
+          statusData = profileResult.data as { status: ProfileStatus } | null;
+          error = roleResult.error ?? profileResult.error;
         } catch (lookupErr) {
           error = {
             message: lookupErr instanceof Error ? lookupErr.message : "Role lookup timed out.",
@@ -171,6 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setRoleError(error ? (error.message ?? "Unable to load your access") : null);
       setRole(error ? null : (data?.role ?? null));
+      setProfileStatus(error ? null : (statusData?.status ?? null));
       setRoleLoading(false);
       setLoading(false);
     }
@@ -199,6 +209,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(null);
         setUser(null);
         setRole(null);
+        setProfileStatus(null);
         setRoleError(error instanceof Error ? error.message : "Unable to load workspace access.");
         setRoleLoading(false);
         setLoading(false);
@@ -211,8 +222,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ session, user, role, roleError, roleLoading, loading }),
-    [session, user, role, roleError, roleLoading, loading],
+    () => ({ session, user, role, profileStatus, roleError, roleLoading, loading }),
+    [session, user, role, profileStatus, roleError, roleLoading, loading],
   );
 
   return createElement(AuthContext.Provider, { value }, children);

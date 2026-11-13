@@ -13,7 +13,7 @@ export const Route = createFileRoute("/_app")({
 });
 
 function AppLayout() {
-  const { user, role, roleError, loading, roleLoading } = useAuth();
+  const { user, role, profileStatus, roleError, loading, roleLoading } = useAuth();
   const nav = useNavigate();
 
   useEffect(() => {
@@ -30,7 +30,7 @@ function AppLayout() {
 
   if (!user) return null;
 
-  if (!roleLoading && (!role || role === "viewer") && !roleError) {
+  if (!roleLoading && (!role || role === "viewer" || profileStatus === "inactive") && !roleError) {
     return <WaitingForWorkspaceAccess />;
   }
 
@@ -63,11 +63,11 @@ function WaitingForWorkspaceAccess() {
           <Clock3 className="h-6 w-6" aria-hidden="true" />
         </div>
         <h1 className="mt-5 text-2xl font-semibold tracking-tight text-slate-950">
-          Waiting for workspace access
+          Waiting for admin approval
         </h1>
         <p className="mt-3 text-sm leading-6 text-slate-500">
-          An owner needs to give you a role before you can access workspace operations. After your
-          role is added, tap Try again.
+          An owner or admin needs to accept your account request and assign you a role before you
+          can access workspace operations. After your account is approved, tap Try again.
         </p>
         <div className="mt-6 flex justify-center gap-2">
           <Button type="button" onClick={() => window.location.reload()}>
