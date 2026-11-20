@@ -222,6 +222,8 @@ export function QuoteAttachmentsSection({
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                      aria-label={`Remove ${attachment.file_name}`}
+                      title="Remove image"
                       onClick={() => void softDeleteAttachment(attachment)}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -279,6 +281,8 @@ export function QuoteAttachmentsSection({
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                    aria-label={`Remove ${attachment.file_name}`}
+                    title="Remove image"
                     onClick={() => void softDeleteAttachment(attachment)}
                   >
                     <Trash2 className="h-4 w-4" />

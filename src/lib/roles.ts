@@ -78,7 +78,7 @@ export function canReopenQuotes(role: AppRole | null) {
 }
 
 export function canDeleteQuoteAttachments(role: AppRole | null) {
-  return role === "owner" || role === "admin";
+  return canSalesWork(role);
 }
 
 export function canViewFullReports(role: AppRole | null) {

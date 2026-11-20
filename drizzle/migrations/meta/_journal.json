@@ -15,6 +15,13 @@
       "when": 1794544006890,
       "tag": "0001_index_audit_logs_user_id",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795140900000,
+      "tag": "0002_allow_sales_delete_quote_attachments",
+      "breakpoints": true
     }
   ]
 }
