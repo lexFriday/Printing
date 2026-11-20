@@ -212,23 +212,26 @@ export function QuoteAttachmentsSection({
                     </div>
                   )}
                 </div>
-                <div className="mt-2 flex items-center justify-between gap-2">
-                  <p className="truncate text-xs font-medium" title={attachment.file_name}>
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                  <p className="min-w-0 flex-1 truncate text-xs font-medium" title={attachment.file_name}>
                     {attachment.file_name}
                   </p>
-                  {canDelete ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                      aria-label={`Remove ${attachment.file_name}`}
-                      title="Remove image"
-                      onClick={() => void softDeleteAttachment(attachment)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  ) : null}
+                  <div className="flex shrink-0 items-center gap-1">
+                    {uploadControl}
+                    {canDelete ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                        aria-label={`Remove ${attachment.file_name}`}
+                        title="Remove image"
+                        onClick={() => void softDeleteAttachment(attachment)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             ))}
@@ -271,23 +274,26 @@ export function QuoteAttachmentsSection({
                   </div>
                 )}
               </div>
-              <div className="mt-3 flex items-center justify-between gap-2">
-                <p className="truncate text-sm font-medium" title={attachment.file_name}>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                <p className="min-w-0 flex-1 truncate text-sm font-medium" title={attachment.file_name}>
                   {attachment.file_name}
                 </p>
-                {canDelete ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                    aria-label={`Remove ${attachment.file_name}`}
-                    title="Remove image"
-                    onClick={() => void softDeleteAttachment(attachment)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                ) : null}
+                <div className="flex shrink-0 items-center gap-1">
+                  {uploadControl}
+                  {canDelete ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                      aria-label={`Remove ${attachment.file_name}`}
+                      title="Remove image"
+                      onClick={() => void softDeleteAttachment(attachment)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  ) : null}
+                </div>
               </div>
             </div>
           ))}
