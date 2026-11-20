@@ -605,31 +605,31 @@ function Reports() {
       const ids = (batches ?? []).map((batch) => batch.id);
       const [expenseResult, fundingResult, attachmentResult] = ids.length
         ? await Promise.all([
-          (supabase as any)
-            .from("job_expenses")
-            .select(
-              "id, petty_cash_batch_id, expense_date, expense_type, supplier_id, supplier_name, description, amount, disbursement_category, disbursement_subcategory, quantity, unit_of_measure, unit_cost, tax_amount, tax_type, payment_status, payment_method, payment_state, payment_source, payment_source_reference, due_date, reference_no, supplier_document_no, supplier_tin, supplier_address, check_date, check_number, remarks, job_order_id, project_cost_confirmed_at, job_order:job_orders(job_number, project_name)",
-            )
-            .in("petty_cash_batch_id", ids),
-          (supabase as any)
-            .from("petty_cash_funding_events")
-            .select(
-              "id, petty_cash_batch_id, funding_date, amount, funding_source, funding_reference, created_at",
-            )
-            .in("petty_cash_batch_id", ids),
-          (supabase as any)
-            .from("petty_cash_batch_attachments")
-            .select(
-              "id, petty_cash_batch_id, storage_path, file_name, file_type, file_size, created_at",
-            )
-            .in("petty_cash_batch_id", ids)
-            .order("created_at", { ascending: false }),
-        ])
+            (supabase as any)
+              .from("job_expenses")
+              .select(
+                "id, petty_cash_batch_id, expense_date, expense_type, supplier_id, supplier_name, description, amount, disbursement_category, disbursement_subcategory, quantity, unit_of_measure, unit_cost, tax_amount, tax_type, payment_status, payment_method, payment_state, payment_source, payment_source_reference, due_date, reference_no, supplier_document_no, supplier_tin, supplier_address, check_date, check_number, remarks, job_order_id, project_cost_confirmed_at, job_order:job_orders(job_number, project_name)",
+              )
+              .in("petty_cash_batch_id", ids),
+            (supabase as any)
+              .from("petty_cash_funding_events")
+              .select(
+                "id, petty_cash_batch_id, funding_date, amount, funding_source, funding_reference, created_at",
+              )
+              .in("petty_cash_batch_id", ids),
+            (supabase as any)
+              .from("petty_cash_batch_attachments")
+              .select(
+                "id, petty_cash_batch_id, storage_path, file_name, file_type, file_size, created_at",
+              )
+              .in("petty_cash_batch_id", ids)
+              .order("created_at", { ascending: false }),
+          ])
         : [
-          { data: [], error: null },
-          { data: [], error: null },
-          { data: [], error: null },
-        ];
+            { data: [], error: null },
+            { data: [], error: null },
+            { data: [], error: null },
+          ];
       const expenses = expenseResult.data;
       const expenseError = expenseResult.error;
       const fundingEvents: any[] = fundingResult.data ?? [];
@@ -642,11 +642,11 @@ function Reports() {
       const receiptIds = (expenses ?? []).map((expense: any) => expense.id);
       const { data: receiptAllocations, error: allocationError } = receiptIds.length
         ? await (supabase as any)
-          .from("job_expense_allocations")
-          .select(
-            "job_expense_id, job_order_id, allocated_amount, job_order:job_orders(job_number, project_name)",
-          )
-          .in("job_expense_id", receiptIds)
+            .from("job_expense_allocations")
+            .select(
+              "job_expense_id, job_order_id, allocated_amount, job_order:job_orders(job_number, project_name)",
+            )
+            .in("job_expense_id", receiptIds)
         : { data: [], error: null };
       if (allocationError) throw allocationError;
       const byBatch = new Map<string, { total: number; count: number; receipts: any[] }>();
@@ -860,7 +860,7 @@ function Reports() {
           vat_amount:
             invoice.tax_type === "vatable"
               ? Number(invoice.invoice_amount || 0) -
-              Number(invoice.amount_due_snapshot || invoice.invoice_amount || 0)
+                Number(invoice.amount_due_snapshot || invoice.invoice_amount || 0)
               : 0,
           ewt_amount: 0,
         })),
@@ -1621,25 +1621,25 @@ function Reports() {
       const update =
         payment_status === "paid"
           ? {
-            payment_status,
-            // Check Disbursements is a report over this same expense. Marking it paid here
-            // must therefore identify the payment as a check rather than create another record.
-            payment_method: "check" as const,
-            payment_state: "released" as const,
-            payment_released_at: new Date().toISOString(),
-            paid_at: new Date().toISOString(),
-            reference_no: reference_no?.trim() || null,
-            supplier_document_no: supplier_document_no?.trim() || null,
-            check_date,
-            check_number: check_number?.trim() || null,
-          }
+              payment_status,
+              // Check Disbursements is a report over this same expense. Marking it paid here
+              // must therefore identify the payment as a check rather than create another record.
+              payment_method: "check" as const,
+              payment_state: "released" as const,
+              payment_released_at: new Date().toISOString(),
+              paid_at: new Date().toISOString(),
+              reference_no: reference_no?.trim() || null,
+              supplier_document_no: supplier_document_no?.trim() || null,
+              check_date,
+              check_number: check_number?.trim() || null,
+            }
           : {
-            payment_status,
-            payment_state: "pending" as const,
-            payment_released_at: null,
-            paid_at: null,
-            check_date: check_date || null,
-          };
+              payment_status,
+              payment_state: "pending" as const,
+              payment_released_at: null,
+              paid_at: null,
+              check_date: check_date || null,
+            };
       const { error } = await supabase.from("job_expenses").update(update).eq("id", id);
       if (error) throw error;
     },
@@ -1723,11 +1723,11 @@ function Reports() {
           remarks: values.remarks.trim() || null,
           ...(proofPath
             ? {
-              payment_proof_storage_path: proofPath,
-              payment_proof_file_name: values.payment_proof_file?.name ?? null,
-              payment_proof_file_type: values.payment_proof_file?.type ?? null,
-              payment_proof_file_size: values.payment_proof_file?.size ?? null,
-            }
+                payment_proof_storage_path: proofPath,
+                payment_proof_file_name: values.payment_proof_file?.name ?? null,
+                payment_proof_file_type: values.payment_proof_file?.type ?? null,
+                payment_proof_file_size: values.payment_proof_file?.size ?? null,
+              }
             : {}),
         })
         .eq("id", id);
@@ -2012,30 +2012,30 @@ function Reports() {
     };
     const { error } = editingPettyCashBatch
       ? await (supabase as any)
-        .from("petty_cash_batches")
-        .update(payload)
-        .eq("id", editingPettyCashBatch.id)
+          .from("petty_cash_batches")
+          .update(payload)
+          .eq("id", editingPettyCashBatch.id)
       : await (async () => {
-        const { data: existingBatches } = await (supabase as any)
-          .from("petty_cash_batches")
-          .select("petty_cash_number");
-        const existingNumbers = (existingBatches ?? [])
-          .map((batch: any) => {
-            const match = String(batch.petty_cash_number ?? "").match(/^PC-\d{4}-(\d+)$/);
-            return match ? Number(match[1]) : 0;
-          })
-          .filter((num: number) => Number.isFinite(num));
-        const nextSeq = (existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0) + 1;
-        const batchYear = (payload.funding_date || "").slice(0, 4) || String(new Date().getFullYear());
-        const pettyCashNumber = `PC-${batchYear}-${String(nextSeq).padStart(6, "0")}`;
-        return (supabase as any)
-          .from("petty_cash_batches")
-          .insert({
-            ...payload,
-            petty_cash_number: pettyCashNumber,
-            created_by: user?.id,
-          });
-      })();
+          const { data: existingBatches } = await (supabase as any)
+            .from("petty_cash_batches")
+            .select("petty_cash_number");
+          const existingNumbers = (existingBatches ?? [])
+            .map((batch: any) => {
+              const match = String(batch.petty_cash_number ?? "").match(/^PC-\d{4}-(\d+)$/);
+              return match ? Number(match[1]) : 0;
+            })
+            .filter((num: number) => Number.isFinite(num));
+          const nextSeq = (existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0) + 1;
+          const batchYear = (payload.funding_date || "").slice(0, 4) || String(new Date().getFullYear());
+          const pettyCashNumber = `PC-${batchYear}-${String(nextSeq).padStart(6, "0")}`;
+          return (supabase as any)
+            .from("petty_cash_batches")
+            .insert({
+              ...payload,
+              petty_cash_number: pettyCashNumber,
+              created_by: user?.id,
+            });
+        })();
     if (error) return toast.error(error.message);
     setPettyCashOpen(false);
     setEditingPettyCashBatch(null);
@@ -2702,8 +2702,9 @@ function Reports() {
           </div>
           <div className="report-actions mb-2 min-h-6" aria-live="polite">
             <div
-              className={`inline-flex h-6 items-center gap-2 rounded-full border bg-background px-2.5 text-xs text-muted-foreground shadow-sm transition-opacity duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] ${isRefreshing ? "opacity-100" : "pointer-events-none opacity-0"
-                }`}
+              className={`inline-flex h-6 items-center gap-2 rounded-full border bg-background px-2.5 text-xs text-muted-foreground shadow-sm transition-opacity duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] ${
+                isRefreshing ? "opacity-100" : "pointer-events-none opacity-0"
+              }`}
             >
               <RefreshCw className="h-3.5 w-3.5 animate-spin" />
               Updating reports
@@ -2728,10 +2729,11 @@ function Reports() {
                     <button
                       key={group.label}
                       type="button"
-                      className={`min-h-10 rounded-xl px-3 text-sm font-medium transition-[background-color,color,box-shadow,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.98] ${active
+                      className={`min-h-10 rounded-xl px-3 text-sm font-medium transition-[background-color,color,box-shadow,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.98] ${
+                        active
                           ? "bg-background text-foreground shadow-sm"
                           : "text-muted-foreground hover:text-foreground"
-                        }`}
+                      }`}
                       aria-pressed={active}
                       onClick={() =>
                         navigate({
@@ -2784,9 +2786,9 @@ function Reports() {
                 </TableHeader>
                 <TableBody>
                   {invoices.isLoading ||
-                    payables.isLoading ||
-                    historicalEntries.isLoading ||
-                    historicalPnl.isLoading ? (
+                  payables.isLoading ||
+                  historicalEntries.isLoading ||
+                  historicalPnl.isLoading ? (
                     <LoadingRow colSpan={6}>Generating report...</LoadingRow>
                   ) : filteredMonthlyProfitRows.invoices.length === 0 &&
                     filteredMonthlyProfitRows.expenses.length === 0 &&
@@ -2808,8 +2810,9 @@ function Reports() {
                           </TableCell>
                           <TableCell className="font-mono text-xs">Workbook</TableCell>
                           <TableCell
-                            className={`text-right tabular-nums ${Number(row.net_profit) < 0 ? "text-destructive" : ""
-                              }`}
+                            className={`text-right tabular-nums ${
+                              Number(row.net_profit) < 0 ? "text-destructive" : ""
+                            }`}
                           >
                             {Number(row.net_profit) < 0
                               ? `-${peso(Math.abs(Number(row.net_profit)))}`
@@ -2877,8 +2880,9 @@ function Reports() {
                             {entry.reference_no || entry.document_no || "-"}
                           </TableCell>
                           <TableCell
-                            className={`text-right tabular-nums ${entry.entry_type === "expense" ? "text-destructive" : ""
-                              }`}
+                            className={`text-right tabular-nums ${
+                              entry.entry_type === "expense" ? "text-destructive" : ""
+                            }`}
                           >
                             {entry.entry_type === "expense"
                               ? `-${peso(entry.gross_amount)}`
@@ -2933,17 +2937,17 @@ function Reports() {
                       onEdit={
                         canWrite
                           ? () =>
-                            setEditingVoucher({
-                              id: p.id,
-                              supplier_name: p.supplier_name,
-                              amount: Number(p.amount || 0),
-                              description: p.description,
-                              check_date: p.check_date,
-                              supplier_document_no: p.supplier_document_no,
-                              check_number: p.check_number,
-                              voucher_printed_at: p.voucher_printed_at,
-                              voucher_print_count: Number(p.voucher_print_count ?? 0),
-                            })
+                              setEditingVoucher({
+                                id: p.id,
+                                supplier_name: p.supplier_name,
+                                amount: Number(p.amount || 0),
+                                description: p.description,
+                                check_date: p.check_date,
+                                supplier_document_no: p.supplier_document_no,
+                                check_number: p.check_number,
+                                voucher_printed_at: p.voucher_printed_at,
+                                voucher_print_count: Number(p.voucher_print_count ?? 0),
+                              })
                           : undefined
                       }
                     />
@@ -3056,17 +3060,17 @@ function Reports() {
                               onEdit={
                                 canWrite
                                   ? () =>
-                                    setEditingVoucher({
-                                      id: p.id,
-                                      supplier_name: p.supplier_name,
-                                      amount: Number(p.amount || 0),
-                                      description: p.description,
-                                      check_date: p.check_date,
-                                      supplier_document_no: p.supplier_document_no,
-                                      check_number: p.check_number,
-                                      voucher_printed_at: p.voucher_printed_at,
-                                      voucher_print_count: Number(p.voucher_print_count ?? 0),
-                                    })
+                                      setEditingVoucher({
+                                        id: p.id,
+                                        supplier_name: p.supplier_name,
+                                        amount: Number(p.amount || 0),
+                                        description: p.description,
+                                        check_date: p.check_date,
+                                        supplier_document_no: p.supplier_document_no,
+                                        check_number: p.check_number,
+                                        voucher_printed_at: p.voucher_printed_at,
+                                        voucher_print_count: Number(p.voucher_print_count ?? 0),
+                                      })
                                   : undefined
                               }
                             />
@@ -3156,43 +3160,43 @@ function Reports() {
                     </EmptyState>
                   ) : (
                     filteredProfitability.map((j) => (
-                      <TableRow
-                        key={j.id}
-                        {...clickableRowProps(`View profitability for ${j.job_number}`, () =>
-                          setProfitabilityDetail(j),
-                        )}
-                      >
-                        <TableCell className="max-w-[320px] whitespace-normal break-words">
-                          <div className="font-medium">
-                            <ReportLink to="/jobs/$id" params={{ id: j.id }}>
-                              {j.project_name}
-                            </ReportLink>
-                          </div>
-                          <div className="mt-1 font-mono text-xs text-muted-foreground">
-                            {j.job_number}
-                          </div>
-                        </TableCell>
-                        <TableCell className="max-w-[180px] whitespace-normal">
-                          <CustomerLink customer={j.customer} />
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {peso(j.quoted_amount)}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {peso(j.expenses)}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          <AmountStack
-                            primary={peso(j.profit)}
-                            secondary={`${j.margin.toFixed(1)}% margin`}
-                            tone={j.profit >= 0 ? "good" : "bad"}
-                          />
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                          {fmtDateTime(j.lastCostRecordedAt)}
-                        </TableCell>
-                      </TableRow>
-                    ))
+                        <TableRow
+                          key={j.id}
+                          {...clickableRowProps(`View profitability for ${j.job_number}`, () =>
+                            setProfitabilityDetail(j),
+                          )}
+                        >
+                          <TableCell className="max-w-[320px] whitespace-normal break-words">
+                            <div className="font-medium">
+                              <ReportLink to="/jobs/$id" params={{ id: j.id }}>
+                                {j.project_name}
+                              </ReportLink>
+                            </div>
+                            <div className="mt-1 font-mono text-xs text-muted-foreground">
+                              {j.job_number}
+                            </div>
+                          </TableCell>
+                          <TableCell className="max-w-[180px] whitespace-normal">
+                            <CustomerLink customer={j.customer} />
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {peso(j.quoted_amount)}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {peso(j.expenses)}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            <AmountStack
+                              primary={peso(j.profit)}
+                              secondary={`${j.margin.toFixed(1)}% margin`}
+                              tone={j.profit >= 0 ? "good" : "bad"}
+                            />
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                            {fmtDateTime(j.lastCostRecordedAt)}
+                          </TableCell>
+                        </TableRow>
+                      ))
                   )}
                 </TableBody>
               </Table>
@@ -3262,7 +3266,7 @@ function Reports() {
                             <span>Remaining</span>
                             <span className="shrink-0 tabular-nums">
                               {profitabilityDetail.pettyCashBalance == null ||
-                                Number(profitabilityDetail.pettyCashBalance) < 0
+                              Number(profitabilityDetail.pettyCashBalance) < 0
                                 ? "—"
                                 : peso(Number(profitabilityDetail.pettyCashBalance))}
                             </span>
@@ -3617,10 +3621,10 @@ function Reports() {
                     (sum, entry) => sum + Number(entry.gross_amount || 0),
                     0,
                   ) +
-                  historicalRevenue.reduce(
-                    (sum, entry) => sum + Number(entry.gross_amount || 0),
-                    0,
-                  ),
+                    historicalRevenue.reduce(
+                      (sum, entry) => sum + Number(entry.gross_amount || 0),
+                      0,
+                    ),
                 )}
               />
             </div>
@@ -3985,77 +3989,77 @@ function Reports() {
                 </DialogHeader>
                 {pettyCashSettlementBatch
                   ? (() => {
-                    const funding = Number(
-                      pettyCashSettlementBatch.funding_total ??
-                      pettyCashSettlementBatch.cash_received ??
-                      0,
-                    );
-                    const receipts = Number(pettyCashSettlementBatch.receipts_total ?? 0);
-                    const remaining = funding - receipts;
-                    return (
-                      <div className="space-y-4">
-                        <div className="rounded-md border bg-muted/20 p-3 text-sm">
-                          <div className="flex justify-between gap-3">
-                            <span className="text-muted-foreground">Cash funded</span>
-                            <span className="font-medium tabular-nums">{peso(funding)}</span>
+                      const funding = Number(
+                        pettyCashSettlementBatch.funding_total ??
+                          pettyCashSettlementBatch.cash_received ??
+                          0,
+                      );
+                      const receipts = Number(pettyCashSettlementBatch.receipts_total ?? 0);
+                      const remaining = funding - receipts;
+                      return (
+                        <div className="space-y-4">
+                          <div className="rounded-md border bg-muted/20 p-3 text-sm">
+                            <div className="flex justify-between gap-3">
+                              <span className="text-muted-foreground">Cash funded</span>
+                              <span className="font-medium tabular-nums">{peso(funding)}</span>
+                            </div>
+                            <div className="mt-2 flex justify-between gap-3">
+                              <span className="text-muted-foreground">Paid receipts</span>
+                              <span className="font-medium tabular-nums">{peso(receipts)}</span>
+                            </div>
+                            <div className="mt-2 flex justify-between gap-3 border-t pt-2">
+                              <span className="font-medium">Cash to return</span>
+                              <span
+                                className={`font-medium tabular-nums ${remaining < 0 ? "text-destructive" : ""}`}
+                              >
+                                {remaining < 0
+                                  ? `${peso(Math.abs(remaining))} over by`
+                                  : peso(remaining)}
+                              </span>
+                            </div>
                           </div>
-                          <div className="mt-2 flex justify-between gap-3">
-                            <span className="text-muted-foreground">Paid receipts</span>
-                            <span className="font-medium tabular-nums">{peso(receipts)}</span>
+                          {remaining < 0 ? (
+                            <p className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                              Receipts are higher than available cash. Add the missing cash or
+                              correct a receipt before closing.
+                            </p>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">
+                              Confirm the returned cash against its physical receipt. Closing locks
+                              this batch and makes it ready for one CV.
+                            </p>
+                          )}
+                          <div className="space-y-2">
+                            <Label>Cash returned *</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={pettyCashSettlementForm.cash_returned_amount}
+                              onChange={(event) =>
+                                setPettyCashSettlementForm({
+                                  ...pettyCashSettlementForm,
+                                  cash_returned_amount: event.target.value,
+                                })
+                              }
+                            />
                           </div>
-                          <div className="mt-2 flex justify-between gap-3 border-t pt-2">
-                            <span className="font-medium">Cash to return</span>
-                            <span
-                              className={`font-medium tabular-nums ${remaining < 0 ? "text-destructive" : ""}`}
-                            >
-                              {remaining < 0
-                                ? `${peso(Math.abs(remaining))} over by`
-                                : peso(remaining)}
-                            </span>
+                          <div className="space-y-2">
+                            <Label>Return reference <span className="font-normal text-muted-foreground">(optional)</span></Label>
+                            <Input
+                              value={pettyCashSettlementForm.cash_returned_reference}
+                              onChange={(event) =>
+                                setPettyCashSettlementForm({
+                                  ...pettyCashSettlementForm,
+                                  cash_returned_reference: event.target.value,
+                                })
+                              }
+                              placeholder="Receipt, acknowledgment, or deposit reference"
+                            />
                           </div>
                         </div>
-                        {remaining < 0 ? (
-                          <p className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                            Receipts are higher than available cash. Add the missing cash or
-                            correct a receipt before closing.
-                          </p>
-                        ) : (
-                          <p className="text-sm text-muted-foreground">
-                            Confirm the returned cash against its physical receipt. Closing locks
-                            this batch and makes it ready for one CV.
-                          </p>
-                        )}
-                        <div className="space-y-2">
-                          <Label>Cash returned *</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={pettyCashSettlementForm.cash_returned_amount}
-                            onChange={(event) =>
-                              setPettyCashSettlementForm({
-                                ...pettyCashSettlementForm,
-                                cash_returned_amount: event.target.value,
-                              })
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Return reference <span className="font-normal text-muted-foreground">(optional)</span></Label>
-                          <Input
-                            value={pettyCashSettlementForm.cash_returned_reference}
-                            onChange={(event) =>
-                              setPettyCashSettlementForm({
-                                ...pettyCashSettlementForm,
-                                cash_returned_reference: event.target.value,
-                              })
-                            }
-                            placeholder="Receipt, acknowledgment, or deposit reference"
-                          />
-                        </div>
-                      </div>
-                    );
-                  })()
+                      );
+                    })()
                   : null}
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setPettyCashSettlementBatch(null)}>
@@ -4077,240 +4081,240 @@ function Reports() {
                 </DialogHeader>
                 {pettyCashDetailsBatch
                   ? (() => {
-                    const difference =
-                      Number(
-                        pettyCashDetailsBatch.funding_total ??
-                        pettyCashDetailsBatch.cash_received,
-                      ) - pettyCashDetailsBatch.receipts_total;
-                    const cashReturned = Number(pettyCashDetailsBatch.cash_returned_amount ?? 0);
-                    return (
-                      <div className="space-y-4">
-                        <div className="grid gap-3 rounded-md border bg-muted/20 p-4 text-sm sm:grid-cols-4">
-                          <div>
-                            <div className="text-muted-foreground">Custodian</div>
-                            <div className="font-medium">
-                              {pettyCashDetailsBatch.custodian_name}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-muted-foreground">Cash received</div>
-                            <div className="font-medium">
-                              {peso(
-                                pettyCashDetailsBatch.funding_total ??
-                                pettyCashDetailsBatch.cash_received,
-                              )}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-muted-foreground">Receipts recorded</div>
-                            <div className="font-medium">
-                              {peso(pettyCashDetailsBatch.receipts_total)} ·{" "}
-                              {pettyCashDetailsBatch.receipt_count}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-muted-foreground">
-                              {pettyCashDetailsBatch.status === "open"
-                                ? "Cash to return"
-                                : "Cash returned"}
-                            </div>
-                            <div
-                              className={`font-medium ${difference < 0 ? "text-destructive" : ""}`}
-                            >
-                              {pettyCashDetailsBatch.status === "open"
-                                ? difference >= 0
-                                  ? `${peso(difference)} to return`
-                                  : `${peso(Math.abs(difference))} overage`
-                                : cashReturned > 0
-                                  ? peso(cashReturned)
-                                  : "Reconciled"}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {pettyCashDetailsBatch.funding_source} ·{" "}
-                          {pettyCashDetailsBatch.funding_reference} · funded{" "}
-                          {fmtDate(pettyCashDetailsBatch.funding_date)}
-                        </div>
-                        {canWrite && pettyCashDetailsBatch.status === "open" ? (
-                          <div className="flex justify-end">
-                            <Button
-                              variant="outline"
-                              onClick={() => {
-                                openEditPettyCashBatch(pettyCashDetailsBatch);
-                                setPettyCashDetailsBatch(null);
-                              }}
-                            >
-                              Edit batch details
-                            </Button>
-                          </div>
-                        ) : null}
-                        <div className="rounded-md border p-4">
-                          <div className="flex flex-wrap items-center justify-between gap-3">
+                      const difference =
+                        Number(
+                          pettyCashDetailsBatch.funding_total ??
+                            pettyCashDetailsBatch.cash_received,
+                        ) - pettyCashDetailsBatch.receipts_total;
+                      const cashReturned = Number(pettyCashDetailsBatch.cash_returned_amount ?? 0);
+                      return (
+                        <div className="space-y-4">
+                          <div className="grid gap-3 rounded-md border bg-muted/20 p-4 text-sm sm:grid-cols-4">
                             <div>
-                              <div className="font-medium">Batch images</div>
-                              <p className="text-sm text-muted-foreground">
-                                Keep scans or photos with this cash advance. Images open at full
-                                size in a new tab.
-                              </p>
+                              <div className="text-muted-foreground">Custodian</div>
+                              <div className="font-medium">
+                                {pettyCashDetailsBatch.custodian_name}
+                              </div>
                             </div>
-                            {canWrite ? (
-                              <Label
-                                htmlFor={`petty-cash-batch-image-${pettyCashDetailsBatch.id}`}
-                                className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted/40"
-                              >
-                                <Upload className="h-4 w-4" />
-                                {pettyCashAttachmentBusy ? "Uploading…" : "Upload image"}
-                                <Input
-                                  id={`petty-cash-batch-image-${pettyCashDetailsBatch.id}`}
-                                  type="file"
-                                  accept="image/jpeg,image/png,image/webp"
-                                  className="sr-only"
-                                  disabled={pettyCashAttachmentBusy}
-                                  onChange={(event) => {
-                                    const file = event.target.files?.[0];
-                                    event.currentTarget.value = "";
-                                    if (file)
-                                      void uploadPettyCashBatchImage(pettyCashDetailsBatch, file);
-                                  }}
-                                />
-                              </Label>
-                            ) : null}
-                          </div>
-                          {pettyCashDetailsBatch.attachments?.length ? (
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              {pettyCashDetailsBatch.attachments.map((attachment: any) => (
-                                <div key={attachment.id} className="group relative flex items-center gap-1">
-                                  <Button type="button" variant="outline" size="sm" onClick={() => void openPettyCashBatchImage(attachment)}>
-                                    {attachment.file_name}
-                                  </Button>
-                                  {canWrite ? <Button type="button" variant="ghost" size="icon" className="absolute -right-2 -top-2 z-10 h-6 w-6 rounded-full border bg-background text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100" aria-label={`Remove ${attachment.file_name}`} title="Remove image" disabled={pettyCashAttachmentBusy} onClick={() => setPettyCashAttachmentToRemove({ batch: pettyCashDetailsBatch, attachment })}><X className="h-3.5 w-3.5" /></Button> : null}
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="mt-3 text-sm text-muted-foreground">
-                              No batch images uploaded yet.
-                            </p>
-                          )}
-                        </div>
-                        <div className="min-w-0 max-w-full max-h-[28rem] overflow-x-hidden overflow-y-auto rounded-md border">
-                          <Table className="w-full table-fixed text-sm">
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Supplier / payee</TableHead>
-                                <TableHead>Description</TableHead>
-                                <TableHead>Document</TableHead>
-                                <TableHead>Allocation</TableHead>
-                                <TableHead className="text-right">Amount</TableHead>
-                                <TableHead className="text-right">Action</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {pettyCashDetailsBatch.receipts.length === 0 ? (
-                                <EmptyState colSpan={7} icon={Receipt}>
-                                  No receipts linked yet. Import receipts into this open batch.
-                                </EmptyState>
-                              ) : (
-                                pettyCashDetailsBatch.receipts.map((receipt: any) => (
-                                  <TableRow key={receipt.id}>
-                                    <TableCell>{fmtDate(receipt.expense_date)}</TableCell>
-                                    <TableCell>{receipt.supplier_name || "—"}</TableCell>
-                                    <TableCell>{receipt.description}</TableCell>
-                                    <TableCell>{receipt.supplier_document_no || "—"}</TableCell>
-                                    <TableCell className="text-xs">
-                                      {receipt.allocations?.length > 1
-                                        ? "Shared across JOs"
-                                        : receipt.allocations?.[0]?.job_order?.job_number || receipt.job_order?.job_number || "Company expense"}
-                                    </TableCell>
-                                    <TableCell className="text-right tabular-nums">
-                                      {peso(receipt.amount)}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                      {canWrite && (receipt.payment_status === "pending" || pettyCashDetailsBatch.status === "open") ? (
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          onClick={() => {
-                                            setPettyCashDetailsBatch(null);
-                                            setEditingExpense(toPendingExpenseEditTarget(receipt));
-                                          }}
-                                        >
-                                          Edit
-                                        </Button>
-                                      ) : (
-                                        <span className="text-xs text-muted-foreground">Locked</span>
-                                      )}
-                                    </TableCell>
-                                  </TableRow>
-                                ))
-                              )}
-                            </TableBody>
-                          </Table>
-                        </div>
-                        <DialogFooter>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => void exportPettyCashBatchExcel(pettyCashDetailsBatch)}
-                          >
-                            Export Excel
-                          </Button>
-                          {pettyCashDetailsBatch.status === "open" ? (
-                            <>
-                              <Button
-                                variant="outline"
-                                onClick={() => {
-                                  setPettyCashFundingBatch(pettyCashDetailsBatch);
-                                  setPettyCashDetailsBatch(null);
-                                }}
-                              >
-                                Add cash
-                              </Button>
-                              <Button
-                                variant="outline"
-                                onClick={() => {
-                                  setExpenseImportContext("petty-cash");
-                                  setExpenseImportBatchId(pettyCashDetailsBatch.id);
-                                  setPettyCashDetailsBatch(null);
-                                  setExpenseImportOpen(true);
-                                }}
-                              >
-                                Import receipts
-                              </Button>
-                              <Button
-                                onClick={() => {
-                                  setPettyCashReceiptBatch(pettyCashDetailsBatch);
-                                  setPettyCashDetailsBatch(null);
-                                }}
-                              >
-                                Add receipt
-                              </Button>
-                            </>
-                          ) : null}
-                          {pettyCashDetailsBatch.status === "closed" ? (
-                            <Button
-                              onClick={() => {
-                                setPettyCashCvBatch({
-                                  id: pettyCashDetailsBatch.id,
-                                  cash_received: Number(
-                                    pettyCashDetailsBatch.funding_total ??
+                            <div>
+                              <div className="text-muted-foreground">Cash received</div>
+                              <div className="font-medium">
+                                {peso(
+                                  pettyCashDetailsBatch.funding_total ??
                                     pettyCashDetailsBatch.cash_received,
-                                  ),
-                                  receipts_total: pettyCashDetailsBatch.receipts_total,
-                                  receipt_count: pettyCashDetailsBatch.receipt_count,
-                                });
-                                setPettyCashDetailsBatch(null);
-                              }}
-                            >
-                              Create CV
-                            </Button>
+                                )}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Receipts recorded</div>
+                              <div className="font-medium">
+                                {peso(pettyCashDetailsBatch.receipts_total)} ·{" "}
+                                {pettyCashDetailsBatch.receipt_count}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">
+                                {pettyCashDetailsBatch.status === "open"
+                                  ? "Cash to return"
+                                  : "Cash returned"}
+                              </div>
+                              <div
+                                className={`font-medium ${difference < 0 ? "text-destructive" : ""}`}
+                              >
+                                {pettyCashDetailsBatch.status === "open"
+                                  ? difference >= 0
+                                    ? `${peso(difference)} to return`
+                                    : `${peso(Math.abs(difference))} overage`
+                                  : cashReturned > 0
+                                    ? peso(cashReturned)
+                                    : "Reconciled"}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {pettyCashDetailsBatch.funding_source} ·{" "}
+                            {pettyCashDetailsBatch.funding_reference} · funded{" "}
+                            {fmtDate(pettyCashDetailsBatch.funding_date)}
+                          </div>
+                          {canWrite && pettyCashDetailsBatch.status === "open" ? (
+                            <div className="flex justify-end">
+                              <Button
+                                variant="outline"
+                                onClick={() => {
+                                  openEditPettyCashBatch(pettyCashDetailsBatch);
+                                  setPettyCashDetailsBatch(null);
+                                }}
+                              >
+                                Edit batch details
+                              </Button>
+                            </div>
                           ) : null}
-                        </DialogFooter>
-                      </div>
-                    );
-                  })()
+                          <div className="rounded-md border p-4">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <div>
+                                <div className="font-medium">Batch images</div>
+                                <p className="text-sm text-muted-foreground">
+                                  Keep scans or photos with this cash advance. Images open at full
+                                  size in a new tab.
+                                </p>
+                              </div>
+                              {canWrite ? (
+                                <Label
+                                  htmlFor={`petty-cash-batch-image-${pettyCashDetailsBatch.id}`}
+                                  className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted/40"
+                                >
+                                  <Upload className="h-4 w-4" />
+                                  {pettyCashAttachmentBusy ? "Uploading…" : "Upload image"}
+                                  <Input
+                                    id={`petty-cash-batch-image-${pettyCashDetailsBatch.id}`}
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp"
+                                    className="sr-only"
+                                    disabled={pettyCashAttachmentBusy}
+                                    onChange={(event) => {
+                                      const file = event.target.files?.[0];
+                                      event.currentTarget.value = "";
+                                      if (file)
+                                        void uploadPettyCashBatchImage(pettyCashDetailsBatch, file);
+                                    }}
+                                  />
+                                </Label>
+                              ) : null}
+                            </div>
+                            {pettyCashDetailsBatch.attachments?.length ? (
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {pettyCashDetailsBatch.attachments.map((attachment: any) => (
+                                  <div key={attachment.id} className="group relative flex items-center gap-1">
+                                    <Button type="button" variant="outline" size="sm" onClick={() => void openPettyCashBatchImage(attachment)}>
+                                      {attachment.file_name}
+                                    </Button>
+                                    {canWrite ? <Button type="button" variant="ghost" size="icon" className="absolute -right-2 -top-2 z-10 h-6 w-6 rounded-full border bg-background text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100" aria-label={`Remove ${attachment.file_name}`} title="Remove image" disabled={pettyCashAttachmentBusy} onClick={() => setPettyCashAttachmentToRemove({ batch: pettyCashDetailsBatch, attachment })}><X className="h-3.5 w-3.5" /></Button> : null}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="mt-3 text-sm text-muted-foreground">
+                                No batch images uploaded yet.
+                              </p>
+                            )}
+                          </div>
+                          <div className="min-w-0 max-w-full max-h-[28rem] overflow-x-hidden overflow-y-auto rounded-md border">
+                            <Table className="w-full table-fixed text-sm">
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Date</TableHead>
+                                  <TableHead>Supplier / payee</TableHead>
+                                  <TableHead>Description</TableHead>
+                                  <TableHead>Document</TableHead>
+                                  <TableHead>Allocation</TableHead>
+                                  <TableHead className="text-right">Amount</TableHead>
+                                  <TableHead className="text-right">Action</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {pettyCashDetailsBatch.receipts.length === 0 ? (
+                                  <EmptyState colSpan={7} icon={Receipt}>
+                                    No receipts linked yet. Import receipts into this open batch.
+                                  </EmptyState>
+                                ) : (
+                                  pettyCashDetailsBatch.receipts.map((receipt: any) => (
+                                    <TableRow key={receipt.id}>
+                                      <TableCell>{fmtDate(receipt.expense_date)}</TableCell>
+                                      <TableCell>{receipt.supplier_name || "—"}</TableCell>
+                                      <TableCell>{receipt.description}</TableCell>
+                                      <TableCell>{receipt.supplier_document_no || "—"}</TableCell>
+                                      <TableCell className="text-xs">
+                                        {receipt.allocations?.length > 1
+                                          ? "Shared across JOs"
+                                          : receipt.allocations?.[0]?.job_order?.job_number || receipt.job_order?.job_number || "Company expense"}
+                                      </TableCell>
+                                      <TableCell className="text-right tabular-nums">
+                                        {peso(receipt.amount)}
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        {canWrite && (receipt.payment_status === "pending" || pettyCashDetailsBatch.status === "open") ? (
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => {
+                                              setPettyCashDetailsBatch(null);
+                                              setEditingExpense(toPendingExpenseEditTarget(receipt));
+                                            }}
+                                          >
+                                            Edit
+                                          </Button>
+                                        ) : (
+                                          <span className="text-xs text-muted-foreground">Locked</span>
+                                        )}
+                                      </TableCell>
+                                    </TableRow>
+                                  ))
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
+                          <DialogFooter>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => void exportPettyCashBatchExcel(pettyCashDetailsBatch)}
+                            >
+                              Export Excel
+                            </Button>
+                            {pettyCashDetailsBatch.status === "open" ? (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  onClick={() => {
+                                    setPettyCashFundingBatch(pettyCashDetailsBatch);
+                                    setPettyCashDetailsBatch(null);
+                                  }}
+                                >
+                                  Add cash
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  onClick={() => {
+                                    setExpenseImportContext("petty-cash");
+                                    setExpenseImportBatchId(pettyCashDetailsBatch.id);
+                                    setPettyCashDetailsBatch(null);
+                                    setExpenseImportOpen(true);
+                                  }}
+                                >
+                                  Import receipts
+                                </Button>
+                                <Button
+                                  onClick={() => {
+                                    setPettyCashReceiptBatch(pettyCashDetailsBatch);
+                                    setPettyCashDetailsBatch(null);
+                                  }}
+                                >
+                                  Add receipt
+                                </Button>
+                              </>
+                            ) : null}
+                            {pettyCashDetailsBatch.status === "closed" ? (
+                              <Button
+                                onClick={() => {
+                                  setPettyCashCvBatch({
+                                    id: pettyCashDetailsBatch.id,
+                                    cash_received: Number(
+                                      pettyCashDetailsBatch.funding_total ??
+                                        pettyCashDetailsBatch.cash_received,
+                                    ),
+                                    receipts_total: pettyCashDetailsBatch.receipts_total,
+                                    receipt_count: pettyCashDetailsBatch.receipt_count,
+                                  });
+                                  setPettyCashDetailsBatch(null);
+                                }}
+                              >
+                                Create CV
+                              </Button>
+                            ) : null}
+                          </DialogFooter>
+                        </div>
+                      );
+                    })()
                   : null}
               </DialogContent>
             </Dialog>
@@ -4606,43 +4610,43 @@ function Reports() {
                           ? (batch as any).petty_cash_number || "—"
                           : pettyCashSearchScope === "job"
                             ? Array.from(
-                              new Set(
-                                [
-                                  batch.job_order?.job_number,
-                                  ...(batch.receipts ?? []).flatMap((receipt: any) => [
-                                    receipt.job_order?.job_number,
-                                    ...(receipt.allocations ?? []).map(
-                                      (allocation: any) => allocation.job_order?.job_number,
-                                    ),
-                                  ]),
-                                ].filter(Boolean),
-                              ),
-                            ).join(", ") || "No Job Order"
-                            : pettyCashSearchScope === "project"
-                              ? Array.from(
                                 new Set(
                                   [
-                                    batch.job_order?.project_name,
+                                    batch.job_order?.job_number,
                                     ...(batch.receipts ?? []).flatMap((receipt: any) => [
-                                      receipt.job_order?.project_name,
+                                      receipt.job_order?.job_number,
                                       ...(receipt.allocations ?? []).map(
-                                        (allocation: any) => allocation.job_order?.project_name,
+                                        (allocation: any) => allocation.job_order?.job_number,
                                       ),
                                     ]),
                                   ].filter(Boolean),
                                 ),
-                              ).join(", ") || "No project"
+                              ).join(", ") || "No Job Order"
+                            : pettyCashSearchScope === "project"
+                              ? Array.from(
+                                  new Set(
+                                    [
+                                      batch.job_order?.project_name,
+                                      ...(batch.receipts ?? []).flatMap((receipt: any) => [
+                                        receipt.job_order?.project_name,
+                                        ...(receipt.allocations ?? []).map(
+                                          (allocation: any) => allocation.job_order?.project_name,
+                                        ),
+                                      ]),
+                                    ].filter(Boolean),
+                                  ),
+                                ).join(", ") || "No project"
                               : pettyCashSearchScope === "transaction"
                                 ? Array.from(
-                                  new Set(
-                                    (batch.receipts ?? [])
-                                      .flatMap((receipt: any) => [
-                                        receipt.description,
-                                        receipt.supplier_name,
-                                      ])
-                                      .filter(Boolean),
-                                  ),
-                                ).join(" · ") || "No transactions"
+                                    new Set(
+                                      (batch.receipts ?? [])
+                                        .flatMap((receipt: any) => [
+                                          receipt.description,
+                                          receipt.supplier_name,
+                                        ])
+                                        .filter(Boolean),
+                                    ),
+                                  ).join(" · ") || "No transactions"
                                 : null;
                       return (
                         <TableRow key={batch.id}>
@@ -4819,18 +4823,18 @@ function Reports() {
                         (batch.receipts ?? []).forEach((receipt: any) => {
                           const shares = receipt.allocations?.length
                             ? receipt.allocations.map((allocation: any) => ({
-                              id: allocation.job_order_id,
-                              amount: Number(allocation.allocated_amount),
-                              job: allocation.job_order,
-                            }))
+                                id: allocation.job_order_id,
+                                amount: Number(allocation.allocated_amount),
+                                job: allocation.job_order,
+                              }))
                             : receipt.job_order_id
                               ? [
-                                {
-                                  id: receipt.job_order_id,
-                                  amount: Number(receipt.amount ?? 0),
-                                  job: receipt.job_order,
-                                },
-                              ]
+                                  {
+                                    id: receipt.job_order_id,
+                                    amount: Number(receipt.amount ?? 0),
+                                    job: receipt.job_order,
+                                  },
+                                ]
                               : [];
                           shares.forEach((share: any) => {
                             const current = projects.get(share.id) ?? {
@@ -5319,8 +5323,8 @@ function Reports() {
                               <span className="text-xs text-muted-foreground">Company expense</span>
                             )}
                             {!p.job_order_id &&
-                              p.allocations?.length &&
-                              !p.project_cost_confirmed_at ? (
+                            p.allocations?.length &&
+                            !p.project_cost_confirmed_at ? (
                               <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-800">
                                 Awaiting Operations confirmation
                               </span>
@@ -5360,9 +5364,9 @@ function Reports() {
                         <TableCell className="text-right">
                           <div className="inline-flex min-w-[128px] items-center justify-end gap-1.5">
                             {canConfirmProjectCosts &&
-                              !p.job_order_id &&
-                              p.allocations?.length &&
-                              !p.project_cost_confirmed_at ? (
+                            !p.job_order_id &&
+                            p.allocations?.length &&
+                            !p.project_cost_confirmed_at ? (
                               <Button
                                 size="sm"
                                 className="h-8 whitespace-nowrap px-3 text-xs"
@@ -5383,8 +5387,8 @@ function Reports() {
                               </Button>
                             ) : null}
                             {canWrite &&
-                              p.payment_status !== "paid" &&
-                              (p.job_order_id || p.project_cost_confirmed_at) ? (
+                            p.payment_status !== "paid" &&
+                            (p.job_order_id || p.project_cost_confirmed_at) ? (
                               <Button
                                 size="sm"
                                 className="h-8 whitespace-nowrap px-3 text-xs"
@@ -5429,16 +5433,16 @@ function Reports() {
                                   </DropdownMenuItem>
                                 ) : null}
                                 {canWrite &&
-                                  !p.job_order_id &&
-                                  !p.project_cost_confirmed_at &&
-                                  (p.job_order_id || p.allocations?.length) ? (
+                                !p.job_order_id &&
+                                !p.project_cost_confirmed_at &&
+                                (p.job_order_id || p.allocations?.length) ? (
                                   <DropdownMenuItem onSelect={() => setAllocationExpense(p)}>
                                     Allocate or adjust projects
                                   </DropdownMenuItem>
                                 ) : null}
                                 {canWrite &&
-                                  p.payment_status !== "paid" &&
-                                  (p.job_order_id || !p.project_cost_confirmed_at) ? (
+                                p.payment_status !== "paid" &&
+                                (p.job_order_id || !p.project_cost_confirmed_at) ? (
                                   <DropdownMenuItem
                                     disabled={updatePayableStatus.isPending}
                                     onSelect={() => {
@@ -5639,7 +5643,7 @@ type GeneralExpenseFormValues = {
   supplier_id: string | null;
   expense_date: string;
   expense_type:
-  "materials" | "labor" | "delivery" | "installation" | "outsourcing" | "miscellaneous";
+    "materials" | "labor" | "delivery" | "installation" | "outsourcing" | "miscellaneous";
   disbursement_category: DisbursementCategory;
   disbursement_subcategory: DisbursementSubcategory | "";
   supplier_name: string;
@@ -6593,7 +6597,7 @@ function GeneralExpenseForm({
                       Tax: {peso(Number(f.tax_amount || 0))} · Total:{" "}
                       {peso(
                         Number(f.amount || 0) +
-                        (pettyCashTaxMode === "add_vat" ? Number(f.tax_amount || 0) : 0),
+                          (pettyCashTaxMode === "add_vat" ? Number(f.tax_amount || 0) : 0),
                       )}
                     </p>
                   )}
@@ -6603,7 +6607,7 @@ function GeneralExpenseForm({
                   <h3 className="mt-1 text-3xl font-semibold tracking-tight">
                     {peso(
                       Number(f.amount || 0) +
-                      (pettyCashTaxMode === "add_vat" ? Number(f.tax_amount || 0) : 0),
+                        (pettyCashTaxMode === "add_vat" ? Number(f.tax_amount || 0) : 0),
                     )}
                   </h3>
                   <p className="mt-1 text-xs text-muted-foreground">Amount plus tax treatment</p>
@@ -6823,9 +6827,9 @@ function GeneralExpenseForm({
                       allocations:
                         value === "shared" && f.allocations.length === 0
                           ? [
-                            { job_order_id: "", allocated_amount: 0 },
-                            { job_order_id: "", allocated_amount: 0 },
-                          ]
+                              { job_order_id: "", allocated_amount: 0 },
+                              { job_order_id: "", allocated_amount: 0 },
+                            ]
                           : f.allocations,
                     })
                   }
@@ -7050,9 +7054,9 @@ function GeneralExpenseForm({
                   allocations:
                     value === "shared" && f.allocations.length === 0
                       ? [
-                        { job_order_id: "", allocated_amount: 0 },
-                        { job_order_id: "", allocated_amount: 0 },
-                      ]
+                          { job_order_id: "", allocated_amount: 0 },
+                          { job_order_id: "", allocated_amount: 0 },
+                        ]
                       : f.allocations,
                 })
               }
@@ -7325,29 +7329,29 @@ function GeneralExpenseForm({
           />
           {f.supplier_name.trim()
             ? (supplierMaster.data ?? [])
-              .filter((supplier) =>
-                supplier.name.toLowerCase().includes(f.supplier_name.trim().toLowerCase()),
-              )
-              .slice(0, 6)
-              .map((supplier) => (
-                <button
-                  key={supplier.id}
-                  type="button"
-                  className="block w-full rounded px-2 py-1.5 text-left text-xs hover:bg-muted"
-                  onClick={() =>
-                    setF({
-                      ...f,
-                      supplier_id: supplier.id,
-                      supplier_name: supplier.name,
-                      supplier_tin: supplier.tin_number ?? "",
-                      supplier_address: supplier.address ?? "",
-                    })
-                  }
-                >
-                  <span className="font-medium">{supplier.name}</span>
-                  <span className="ml-2 text-muted-foreground">Use saved supplier</span>
-                </button>
-              ))
+                .filter((supplier) =>
+                  supplier.name.toLowerCase().includes(f.supplier_name.trim().toLowerCase()),
+                )
+                .slice(0, 6)
+                .map((supplier) => (
+                  <button
+                    key={supplier.id}
+                    type="button"
+                    className="block w-full rounded px-2 py-1.5 text-left text-xs hover:bg-muted"
+                    onClick={() =>
+                      setF({
+                        ...f,
+                        supplier_id: supplier.id,
+                        supplier_name: supplier.name,
+                        supplier_tin: supplier.tin_number ?? "",
+                        supplier_address: supplier.address ?? "",
+                      })
+                    }
+                  >
+                    <span className="font-medium">{supplier.name}</span>
+                    <span className="ml-2 text-muted-foreground">Use saved supplier</span>
+                  </button>
+                ))
             : null}
           {(supplierSuggestions.data ?? []).length > 0 ? (
             <div className="rounded-md border bg-background p-1 text-xs shadow-sm">
@@ -7707,8 +7711,8 @@ function GeneralExpenseForm({
         className={`grid gap-3 ${f.payment_method === "check" && ["released", "cleared"].includes(f.payment_state) && !isPettyCashReceipt ? "sm:grid-cols-3" : ""}`}
       >
         {f.payment_method === "check" &&
-          ["released", "cleared"].includes(f.payment_state) &&
-          !isPettyCashReceipt ? (
+        ["released", "cleared"].includes(f.payment_state) &&
+        !isPettyCashReceipt ? (
           <div className="space-y-2">
             <Label>Check Date *</Label>
             <Input
@@ -7720,8 +7724,8 @@ function GeneralExpenseForm({
           </div>
         ) : null}
         {f.payment_method === "check" &&
-          ["released", "cleared"].includes(f.payment_state) &&
-          !isPettyCashReceipt ? (
+        ["released", "cleared"].includes(f.payment_state) &&
+        !isPettyCashReceipt ? (
           <div className="space-y-2">
             <Label>Check No. *</Label>
             <Input
@@ -7903,9 +7907,9 @@ function GeneralExpenseStepperForm({
       allocations:
         value === "shared" && f.allocations.length === 0
           ? [
-            { job_order_id: "", allocated_amount: 0 },
-            { job_order_id: "", allocated_amount: 0 },
-          ]
+              { job_order_id: "", allocated_amount: 0 },
+              { job_order_id: "", allocated_amount: 0 },
+            ]
           : f.allocations,
     });
 
@@ -8403,11 +8407,11 @@ function GeneralExpenseStepperForm({
                             </p>
                           ) : null}
                           {supplierSearch.trim() &&
-                            !(suppliers.data ?? []).some(
-                              (supplier) =>
-                                supplier.name.trim().toLowerCase() ===
-                                supplierSearch.trim().toLowerCase(),
-                            ) ? (
+                          !(suppliers.data ?? []).some(
+                            (supplier) =>
+                              supplier.name.trim().toLowerCase() ===
+                              supplierSearch.trim().toLowerCase(),
+                          ) ? (
                             <button
                               type="button"
                               className="block w-full rounded border-t px-2 py-2 text-left text-sm font-medium hover:bg-muted"
@@ -9386,8 +9390,9 @@ function SummaryCard({
     <Card className="min-w-0 overflow-hidden p-4">
       <div className="truncate text-xs text-muted-foreground">{label}</div>
       <div
-        className={`mt-1 min-w-0 break-all text-lg font-semibold leading-tight tracking-tight tabular-nums sm:text-xl ${tone === "good" ? "text-success" : tone === "bad" ? "text-destructive" : ""
-          }`}
+        className={`mt-1 min-w-0 break-all text-lg font-semibold leading-tight tracking-tight tabular-nums sm:text-xl ${
+          tone === "good" ? "text-success" : tone === "bad" ? "text-destructive" : ""
+        }`}
       >
         {value}
       </div>
