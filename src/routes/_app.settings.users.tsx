@@ -401,8 +401,8 @@ function UsersPage() {
             Signatures: PNG, JPG, or WEBP up to 512 KB. Images are trimmed before confirmation.
           </p>
         </div>
-        <div className="min-w-0 max-h-[calc(100dvh-16rem)] max-w-full overscroll-contain overflow-y-auto [&>div]:overflow-x-hidden">
-          <Table className="w-full table-fixed">
+        <div className="min-w-0 max-h-[calc(100dvh-16rem)] max-w-full overscroll-contain overflow-auto">
+          <Table className="w-full min-w-[760px] table-fixed">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[14%]">Name</TableHead>

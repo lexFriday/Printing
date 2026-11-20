@@ -244,7 +244,7 @@ export function PrintShell({
 
   return (
     <div
-      className="print-shell min-h-screen bg-slate-100 p-6"
+      className="print-shell min-h-screen bg-slate-100 p-3 sm:p-6"
       data-print-profile={printProfile ? JSON.stringify(printProfile) : undefined}
     >
       <style>{`
@@ -478,7 +478,7 @@ export function PrintShell({
         </div>
       ) : null}
 
-      <div className="print-actions mx-auto mb-4 flex max-w-[8.5in] items-center justify-between gap-3">
+      <div className="print-actions mx-auto mb-4 flex max-w-[8.5in] flex-wrap items-center justify-between gap-3">
         <Button asChild variant="ghost">
           <Link to={backTo as never} params={backParams as never} search={backSearch as never}>
             <ArrowLeft className="h-4 w-4" /> {backLabel}
