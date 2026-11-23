@@ -1,4 +1,4 @@
-﻿import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useId, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -694,10 +694,10 @@ function JobDetails() {
         </Link>
       </Button>
 
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-4">
         <div className="min-w-0 flex-1">
-          <div className="mb-1 flex min-w-0 items-center gap-3">
-            <h1 className="min-w-0 truncate text-3xl font-semibold" title={job.project_name}>
+          <div className="mb-1 flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+            <h1 className="min-w-0 break-words text-2xl font-semibold sm:text-3xl" title={job.project_name}>
               {job.project_name}
             </h1>
             <div className="shrink-0">
@@ -836,8 +836,8 @@ function JobDetails() {
         </div>
       </Card>
 
-      <Card className="p-4">
-        <div className="grid items-start gap-4 lg:grid-cols-[minmax(18rem,0.9fr)_minmax(18rem,0.9fr)]">
+      <Card className="min-w-0 p-4">
+        <div className="grid items-start gap-4 lg:grid-cols-2">
           <section>
             <h2 className="text-sm font-semibold">Source details</h2>
             <div className="mt-3 space-y-2">
