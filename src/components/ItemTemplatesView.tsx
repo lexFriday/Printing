@@ -4,6 +4,7 @@ import { Edit2, PackagePlus, ShieldCheck, Wrench } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { EmptyState, LoadingRow, PageHeader } from "@/components/system";
+import { MobileCardList, MobileDetailRow } from "@/components/MobileCardList";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -254,7 +255,55 @@ export function ItemTemplatesPage({ navigation }: { navigation?: ReactNode } = {
             <div className="text-sm text-muted-foreground">{activeCount} active templates</div>
           </div>
         </div>
-        <div className="max-h-[60vh] overflow-y-auto rounded-md border" tabIndex={0} aria-label="Item templates list">
+        <div className="md:hidden">
+          <MobileCardList
+            items={templates.data ?? []}
+            getKey={(template) => template.id}
+            loading={templates.isLoading}
+            loadingText="Loading item templates..."
+            empty="No item templates found"
+            getDetailTitle={(template) => template.name}
+            getDetailSubtitle={(template) => template.description || undefined}
+            renderSummary={(template) => (
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="truncate font-medium">{template.name}</div>
+                  <div className="truncate text-xs text-muted-foreground">
+                    {template.pricing_basis === "per_sheet"
+                      ? "Printed sheets"
+                      : template.pricing_mode === "sqft" ? "Square foot" : "Fixed unit"}
+                  </div>
+                </div>
+                <Badge variant={template.is_active ? "default" : "secondary"} className="shrink-0">
+                  {template.is_active ? "Active" : "Inactive"}
+                </Badge>
+              </div>
+            )}
+            renderDetail={(template, close) => (
+              <>
+                <MobileDetailRow label="Pricing" value={template.pricing_basis === "per_sheet" ? "Printed sheets" : template.pricing_mode === "sqft" ? "Square foot" : "Fixed unit"} />
+                <MobileDetailRow label="Defaults" value={template.pricing_mode === "sqft" ? `${template.default_unit ?? "-"} · ${template.default_rate_per_sqft ?? "-"}/sq ft${formatSize(template)}` : `${peso(template.default_unit_price ?? 0)} each${formatSize(template)}`} />
+                <MobileDetailRow label="Status" value={template.is_active ? "Active" : "Inactive"} />
+                <MobileDetailRow label="Updated" value={fmtDate(template.updated_at)} />
+                {canAdmin ? (
+                  <div className="grid grid-cols-2 gap-2 pt-2">
+                    <Button variant="outline" onClick={() => { close(); setForm(toForm(template)); }}><Edit2 className="mr-1.5 h-4 w-4" /> Edit</Button>
+                    <Button variant="outline" onClick={async () => {
+                      close();
+                      const { data, error } = await (supabase.from("item_template_materials") as any).select("material_id,quantity,basis,version").eq("item_template_id", template.id).eq("active", true);
+                      if (error) { toast.error(error.message); return; }
+                      if (new Set((data ?? []).map((row: any) => row.version)).size > 1) { toast.error("This template has conflicting active recipe versions. Ask an administrator to repair it before editing."); return; }
+                      const rows = (data ?? []).map((row: any) => ({ materialId: row.material_id, quantity: String(row.quantity), basis: row.basis }));
+                      const currentRows = rows.length ? rows : [{ materialId: "", quantity: "", basis: "per_item" as const }];
+                      setMaterialsForm({ template, rows: currentRows, initialRows: currentRows, idempotencyKey: crypto.randomUUID() });
+                    }}><Wrench className="mr-1.5 h-4 w-4" /> Materials</Button>
+                  </div>
+                ) : null}
+              </>
+            )}
+          />
+        </div>
+        <div className="hidden max-h-[60vh] overflow-y-auto rounded-md border md:block" tabIndex={0} aria-label="Item templates list">
         <Table>
           <TableHeader className="sticky top-0 z-10 bg-background">
             <TableRow>

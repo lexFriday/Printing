@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, ScrollText, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { AccessDenied, EmptyState, LoadingRow, PageHeader } from "@/components/system";
+import { MobileCardList, MobileDetailRow } from "@/components/MobileCardList";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -162,7 +163,41 @@ function AuditLogsPage() {
           </Select>
         </div>
 
-        <div className="max-h-[calc(100dvh-18rem)] overscroll-contain overflow-auto">
+        <div className="p-3 md:hidden">
+          <MobileCardList
+            items={logs.data ?? []}
+            getKey={(log) => log.id}
+            loading={logs.isLoading}
+            loadingText="Loading audit logs..."
+            empty={
+              logs.isError
+                ? "We could not load the change history. Try again."
+                : search.trim() || entityType !== "all"
+                  ? "No changes match your search."
+                  : "No changes recorded yet."
+            }
+            getDetailTitle={(log) => labelAction(log.action)}
+            getDetailSubtitle={(log) => fmtDateTime(log.created_at)}
+            renderSummary={(log) => (
+              <div className="min-w-0">
+                <div className="truncate font-medium">{labelAction(log.action)}</div>
+                <div className="truncate text-xs text-muted-foreground">
+                  {humanizeEntity(log.entity_type)} · {log.profile?.display_name ?? log.profile?.email ?? "System user"}
+                </div>
+                <div className="mt-0.5 text-[11px] text-muted-foreground">{fmtDateTime(log.created_at)}</div>
+              </div>
+            )}
+            renderDetail={(log) => (
+              <>
+                <MobileDetailRow label="Area" value={humanizeEntity(log.entity_type)} />
+                <MobileDetailRow label="Changed by" value={log.profile?.display_name ?? log.profile?.email ?? "System user"} />
+                <MobileDetailRow label="Item ID" value={log.entity_id ?? "—"} />
+                <MobileDetailRow label="Change details" value={summarizeDetails(log.new_values, log.old_values) || "—"} />
+              </>
+            )}
+          />
+        </div>
+        <div className="hidden max-h-[calc(100dvh-18rem)] overscroll-contain overflow-auto md:block">
           <Table>
             <TableHeader>
               <TableRow>

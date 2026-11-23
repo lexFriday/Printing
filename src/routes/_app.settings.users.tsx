@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { EmptyState, LoadingRow, PageHeader } from "@/components/system";
+import { MobileCardList, MobileDetailRow } from "@/components/MobileCardList";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -401,7 +402,117 @@ function UsersPage() {
             Signatures: PNG, JPG, or WEBP up to 512 KB. Images are trimmed before confirmation.
           </p>
         </div>
-        <div className="min-w-0 max-h-[calc(100dvh-16rem)] max-w-full overscroll-contain overflow-auto">
+        <div className="md:hidden">
+          <MobileCardList
+            items={users.data ?? []}
+            getKey={(u) => u.id}
+            loading={users.isLoading}
+            loadingText="Loading users..."
+            empty="No users found"
+            getDetailTitle={(u) => u.display_name || u.email || "User"}
+            getDetailSubtitle={(u) => u.email ?? undefined}
+            renderSummary={(u) => (
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="truncate font-medium">{u.display_name || "Unnamed user"}</div>
+                  <div className="truncate text-xs text-muted-foreground">{u.email ?? "-"}</div>
+                </div>
+                <div className="shrink-0 text-right text-xs capitalize text-muted-foreground">
+                  <div>{u.role ?? "No role"}</div>
+                  <div>{u.status}</div>
+                </div>
+              </div>
+            )}
+            renderDetail={(u, close) => (
+              <>
+                <MobileDetailRow label="Email" value={u.email ?? "-"} />
+                <MobileDetailRow label="Added" value={fmtDate(u.created_at)} />
+                {(canManage || u.id === authUser?.id) ? (
+                  <div className="space-y-1.5 border-b py-2">
+                    <span className="text-xs font-medium text-muted-foreground">Display name</span>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={nameDrafts[u.id] ?? u.display_name ?? ""}
+                        onChange={(event) => setNameDrafts((current) => ({ ...current, [u.id]: event.target.value }))}
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={updateName.isPending}
+                        onClick={() => updateName.mutate({ userId: u.id, displayName: nameDrafts[u.id] ?? u.display_name ?? "" })}
+                      >
+                        Save
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+                {canManage ? (
+                  <>
+                    <div className="flex items-center justify-between gap-3 border-b py-2 text-sm">
+                      <span className="text-muted-foreground">Role</span>
+                      <Select
+                        value={u.role ?? undefined}
+                        onValueChange={(nextRole) => updateRole.mutate({ userId: u.id, nextRole: nextRole as AppRole })}
+                      >
+                        <SelectTrigger className="w-[160px]"><SelectValue placeholder="Assign role" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="owner">Owner</SelectItem>
+                          <SelectItem value="admin">Admin Staff</SelectItem>
+                          <SelectItem value="sales">Sales</SelectItem>
+                          <SelectItem value="staff">Staff</SelectItem>
+                          <SelectItem value="accounting">Accounting</SelectItem>
+                          <SelectItem value="production">Production</SelectItem>
+                          <SelectItem value="viewer">Viewer</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 border-b py-2 text-sm">
+                      <span className="text-muted-foreground">Status</span>
+                      <Select
+                        value={u.status}
+                        onValueChange={(status) => updateStatus.mutate({ userId: u.id, status: status as "active" | "inactive" })}
+                      >
+                        <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="inactive">Inactive</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                ) : null}
+                <div className="flex items-center justify-between gap-3 pt-2 text-sm">
+                  <span className="text-muted-foreground">Signature</span>
+                  <div className="flex items-center gap-2">
+                    <label className="inline-flex">
+                      <Input
+                        className="sr-only"
+                        type="file"
+                        accept={signatureTypes.join(",")}
+                        disabled={updateSignature.isPending}
+                        onChange={(event) => {
+                          close();
+                          void prepareSignature(u, event.target.files?.[0]);
+                          event.target.value = "";
+                        }}
+                      />
+                      <span className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border bg-background px-3 text-sm font-medium shadow-xs hover:bg-accent">
+                        <Upload className="h-4 w-4" />
+                        {u.signature_url ? "Replace" : "Upload"}
+                      </span>
+                    </label>
+                    {u.signature_url ? (
+                      <Button type="button" variant="ghost" size="icon" onClick={() => { close(); setRemoveTarget(u); }}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              </>
+            )}
+          />
+        </div>
+        <div className="hidden min-w-0 max-h-[calc(100dvh-16rem)] max-w-full overscroll-contain overflow-auto md:block">
           <Table className="w-full min-w-[760px] table-fixed">
             <TableHeader>
               <TableRow>

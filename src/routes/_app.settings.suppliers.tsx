@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState, LoadingRow, PageHeader } from "@/components/system";
+import { MobileCardList, MobileDetailRow } from "@/components/MobileCardList";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { canManageUsers } from "@/lib/roles";
@@ -87,7 +88,39 @@ function SuppliersPage() {
     <div className="inline-flex rounded-lg border bg-muted/30 p-1" role="tablist" aria-label="Business category"><Button type="button" size="sm" variant="ghost" role="tab" onClick={() => navigate({ to: "/customers" })}>Customers</Button><Button type="button" size="sm" variant="default" role="tab" aria-selected="true">Suppliers</Button></div>
     <Card className="overflow-hidden">
       <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between"><div className="relative w-full sm:max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input aria-label="Search suppliers" className="h-11 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, contact, or TIN" /></div><p className="text-sm text-muted-foreground" aria-live="polite">{suppliers.isLoading ? "Loading suppliers..." : `${rows.length} supplier records`}</p></div>
-      <div className="max-h-[calc(100dvh-16rem)] overscroll-contain overflow-auto"><Table className="min-w-[760px]"><TableHeader><TableRow><TableHead>Supplier</TableHead><TableHead>TIN</TableHead><TableHead>Contact person</TableHead><TableHead>Number</TableHead><TableHead>Email</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader><TableBody>{suppliers.isLoading ? <LoadingRow colSpan={7} /> : rows.length === 0 ? <EmptyState colSpan={7}>No suppliers yet</EmptyState> : rows.map((s) => <TableRow key={s.id}><TableCell className="max-w-[18rem] whitespace-nowrap font-medium"><div className="truncate" title={s.supplier_name}>{s.supplier_name}</div></TableCell><TableCell className="font-mono text-xs">{s.tin || "-"}</TableCell><TableCell>{s.contact_person || "-"}</TableCell><TableCell>{s.contact_number || "-"}</TableCell><TableCell className="max-w-[16rem] text-muted-foreground"><div className="truncate" title={s.email ?? ""}>{s.email || "-"}</div></TableCell><TableCell>{s.is_active ? "Active" : "Inactive"}</TableCell><TableCell className="text-right"><Button size="sm" variant="ghost" onClick={() => { setForm({ ...s }); setOpen(true); }}><Pencil className="mr-2 h-4 w-4" />Edit</Button></TableCell></TableRow>)}</TableBody></Table></div>
+      <div className="p-3 md:hidden">
+        <MobileCardList
+          items={rows}
+          getKey={(s) => s.id}
+          loading={suppliers.isLoading}
+          loadingText="Loading suppliers..."
+          empty="No suppliers yet"
+          getDetailTitle={(s) => s.supplier_name}
+          getDetailSubtitle={(s) => s.is_active ? "Active supplier" : "Inactive supplier"}
+          renderSummary={(s) => (
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="truncate font-medium">{s.supplier_name}</div>
+                <div className="truncate text-xs text-muted-foreground">{s.contact_person || "No contact"} · {s.contact_number || "-"}</div>
+              </div>
+              <span className="shrink-0 text-xs text-muted-foreground">{s.is_active ? "Active" : "Inactive"}</span>
+            </div>
+          )}
+          renderDetail={(s, close) => (
+            <>
+              <MobileDetailRow label="TIN" value={s.tin || "-"} />
+              <MobileDetailRow label="Contact person" value={s.contact_person || "-"} />
+              <MobileDetailRow label="Contact number" value={s.contact_number || "-"} />
+              <MobileDetailRow label="Email" value={s.email || "-"} />
+              <MobileDetailRow label="Address" value={s.address || "-"} />
+              <MobileDetailRow label="Payment terms" value={s.payment_terms || "-"} />
+              {s.notes ? <MobileDetailRow label="Notes" value={s.notes} /> : null}
+              <Button className="mt-2 w-full" onClick={() => { close(); setForm({ ...s }); setOpen(true); }}><Pencil className="mr-2 h-4 w-4" />Edit supplier</Button>
+            </>
+          )}
+        />
+      </div>
+      <div className="hidden max-h-[calc(100dvh-16rem)] overscroll-contain overflow-auto md:block"><Table className="min-w-[760px]"><TableHeader><TableRow><TableHead>Supplier</TableHead><TableHead>TIN</TableHead><TableHead>Contact person</TableHead><TableHead>Number</TableHead><TableHead>Email</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader><TableBody>{suppliers.isLoading ? <LoadingRow colSpan={7} /> : rows.length === 0 ? <EmptyState colSpan={7}>No suppliers yet</EmptyState> : rows.map((s) => <TableRow key={s.id}><TableCell className="max-w-[18rem] whitespace-nowrap font-medium"><div className="truncate" title={s.supplier_name}>{s.supplier_name}</div></TableCell><TableCell className="font-mono text-xs">{s.tin || "-"}</TableCell><TableCell>{s.contact_person || "-"}</TableCell><TableCell>{s.contact_number || "-"}</TableCell><TableCell className="max-w-[16rem] text-muted-foreground"><div className="truncate" title={s.email ?? ""}>{s.email || "-"}</div></TableCell><TableCell>{s.is_active ? "Active" : "Inactive"}</TableCell><TableCell className="text-right"><Button size="sm" variant="ghost" onClick={() => { setForm({ ...s }); setOpen(true); }}><Pencil className="mr-2 h-4 w-4" />Edit</Button></TableCell></TableRow>)}</TableBody></Table></div>
     </Card>
     <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>{form.id ? "Edit supplier" : "New supplier"}</DialogTitle></DialogHeader><div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2 sm:col-span-2"><Label>Supplier name *</Label><Input value={form.supplier_name} onChange={(e) => setForm({ ...form, supplier_name: e.target.value })} /></div><div className="space-y-2"><Label>TIN</Label><Input value={form.tin ?? ""} onChange={(e) => setForm({ ...form, tin: e.target.value })} /></div><div className="space-y-2"><Label>Email</Label><Input type="email" value={form.email ?? ""} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div><div className="space-y-2 sm:col-span-2"><Label>Address</Label><Input value={form.address ?? ""} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div><div className="space-y-2"><Label>Contact person</Label><Input value={form.contact_person ?? ""} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} /></div><div className="space-y-2"><Label>Contact number</Label><Input value={form.contact_number ?? ""} onChange={(e) => setForm({ ...form, contact_number: e.target.value })} /></div><div className="space-y-2 sm:col-span-2"><Label>Payment terms</Label><Select value={form.payment_terms && paymentTermPresets.includes(form.payment_terms) ? form.payment_terms : "custom"} onValueChange={(value) => setForm({ ...form, payment_terms: value === "custom" ? (paymentTermPresets.includes(form.payment_terms ?? "") ? "" : form.payment_terms ?? "") : value })}><SelectTrigger><SelectValue placeholder="Choose payment terms" /></SelectTrigger><SelectContent>{paymentTermPresets.map((term) => <SelectItem key={term} value={term}>{term}</SelectItem>)}<SelectItem value="custom">Custom</SelectItem></SelectContent></Select>{(!form.payment_terms || !paymentTermPresets.includes(form.payment_terms)) && <Input value={form.payment_terms ?? ""} onChange={(e) => setForm({ ...form, payment_terms: e.target.value })} placeholder="Type custom payment terms" />}<p className="text-xs text-muted-foreground">Choose a common term or select Custom to enter your own.</p></div><div className="space-y-2 sm:col-span-2"><Label>Notes</Label><Textarea value={form.notes ?? ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div></div><DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={() => void save()}>Save supplier</Button></DialogFooter></DialogContent></Dialog>
   </div>;
