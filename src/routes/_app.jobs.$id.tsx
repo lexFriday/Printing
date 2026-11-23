@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Card } from "@/components/ui/card";
 import { WorkflowStepper } from "@/components/workflow-stepper";
+import { MobileCardList, MobileDetailRow } from "@/components/MobileCardList";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
@@ -914,7 +915,104 @@ function JobDetails() {
             Pricing and tax mode are copied from the approved quotation.
           </p>
         </div>
-        <div className="max-h-[24rem] overflow-auto">
+        <div className="p-3 md:hidden">
+          <MobileCardList
+            items={lines
+              .filter((line) => line.description !== "[BLANK_LINE]")
+              .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))}
+            getKey={(line) => line.id}
+            empty="No quotation line items were copied to this job."
+            getDetailTitle={(line) => line.description}
+            getDetailSubtitle={(line) =>
+              (line as any).pricing_basis === "per_sheet"
+                ? "Per sheet"
+                : line.pricing_mode === "sqft"
+                  ? "Sq ft"
+                  : "Fixed"
+            }
+            renderSummary={(line) => (
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="line-clamp-2 text-sm font-medium">{line.description}</div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">
+                    Qty {Number(line.quantity)} · {peso(line.unit_price)}
+                  </div>
+                </div>
+                <div className="shrink-0 font-semibold tabular-nums text-sm">
+                  {peso(line.line_total)}
+                </div>
+              </div>
+            )}
+            renderDetail={(line) => (
+              <>
+                <MobileDetailRow
+                  label="Mode"
+                  value={
+                    (line as any).pricing_basis === "per_sheet"
+                      ? "Per sheet"
+                      : line.pricing_mode === "sqft"
+                        ? "Sq ft"
+                        : "Fixed"
+                  }
+                />
+                {line.pricing_mode === "sqft" ? (
+                  <MobileDetailRow
+                    label="Size / Rate"
+                    value={`${line.width} × ${line.height} ${line.unit_of_measure} = ${Number(line.computed_sqft ?? 0).toFixed(2)} sq ft @ ${peso(line.rate_per_sqft)}/sq ft`}
+                  />
+                ) : null}
+                <MobileDetailRow label="Qty" value={Number(line.quantity)} />
+                <MobileDetailRow label="Unit price" value={peso(line.unit_price)} />
+                {(line as any).pricing_basis === "per_sheet" ? (
+                  <div className="flex items-center justify-between gap-3 border-b py-2 text-sm">
+                    <span className="text-muted-foreground">
+                      Actual sheets (Plan: {Number((line as any).planned_sheets ?? 0).toLocaleString()})
+                    </span>
+                    <Input
+                      aria-label={`Actual sheets for ${line.description}`}
+                      className="h-8 w-28 text-right"
+                      type="number"
+                      min="0"
+                      defaultValue={(line as any).actual_sheets ?? ""}
+                      placeholder="Actual"
+                      disabled={!canJobWork || updateSheetUsage.isPending}
+                      onBlur={(event) => {
+                        const value = event.currentTarget.value.trim();
+                        updateSheetUsage.mutate({
+                          lineId: line.id,
+                          actualSheets: value === "" ? null : Number(value),
+                        });
+                      }}
+                    />
+                  </div>
+                ) : null}
+                <MobileDetailRow label="Line total" value={peso(line.line_total)} />
+              </>
+            )}
+          />
+          {lines.length > 0 ? (
+            <div className="mt-3 space-y-1.5 border-t pt-3 text-sm">
+              {lines.filter((line) => line.description !== "[BLANK_LINE]").length > 0 &&
+              job.tax_type === "vatable" ? (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">VATable sales</span>
+                    <span className="font-medium tabular-nums">{peso(lineSubtotal)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">VAT 12%</span>
+                    <span className="font-medium tabular-nums">{peso(jobVat.vat)}</span>
+                  </div>
+                </>
+              ) : null}
+              <div className="flex justify-between text-base font-semibold">
+                <span>Total</span>
+                <span className="tabular-nums">{peso(displayRevenue)}</span>
+              </div>
+            </div>
+          ) : null}
+        </div>
+        <div className="hidden max-h-[24rem] overflow-auto md:block">
           <Table>
             <TableHeader className="sticky top-0 z-10 bg-card">
               <TableRow>

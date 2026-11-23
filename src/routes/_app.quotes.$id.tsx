@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 import { WorkflowStepper } from "@/components/workflow-stepper";
+import { MobileCardList, MobileDetailRow } from "@/components/MobileCardList";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
@@ -806,7 +807,89 @@ function QuoteDetails() {
           <h2 className="font-semibold">Line items</h2>
           <p className="mt-1 text-sm text-muted-foreground">Quoted products and services.</p>
         </div>
-        <div className="max-h-[24rem] overflow-auto">
+        <div className="p-3 md:hidden">
+          <MobileCardList
+            items={quoteLines}
+            getKey={(l) => l.id}
+            empty="No line items."
+            getDetailTitle={(l) => l.description}
+            getDetailSubtitle={(l) => (l.pricing_mode === "sqft" ? "Sq ft" : "Fixed")}
+            renderSummary={(l) => (
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="line-clamp-2 text-sm font-medium">{l.description}</div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">
+                    Qty {Number(l.quantity)} · {peso(l.unit_price)}
+                  </div>
+                </div>
+                <div className="shrink-0 font-semibold tabular-nums text-sm">
+                  {peso(l.line_total)}
+                </div>
+              </div>
+            )}
+            renderDetail={(l) => (
+              <>
+                <MobileDetailRow
+                  label="Mode"
+                  value={l.pricing_mode === "sqft" ? "Sq ft" : "Fixed"}
+                />
+                {l.pricing_mode === "sqft" ? (
+                  <MobileDetailRow
+                    label="Size / Rate"
+                    value={`${l.width}×${l.height} ${l.unit_of_measure} / ${Number(l.computed_sqft ?? 0).toFixed(2)} sq ft @ ${peso(l.rate_per_sqft)}/sq ft`}
+                  />
+                ) : null}
+                {Number(l.adjustment_amount ?? 0) !== 0 ? (
+                  <MobileDetailRow
+                    label={l.adjustment_label || "Adjustment"}
+                    value={peso(l.adjustment_amount)}
+                  />
+                ) : null}
+                <MobileDetailRow label="Qty" value={Number(l.quantity)} />
+                <MobileDetailRow label="Unit price" value={peso(l.unit_price)} />
+                <MobileDetailRow label="Line total" value={peso(l.line_total)} />
+                <div className="pt-2">
+                  <QuoteAttachmentsSection
+                    quotationId={id}
+                    quoteLineItemId={l.id}
+                    title="Reference images"
+                    description="Attached to this item."
+                    compact
+                    allowUpload={false}
+                    hideWhenEmpty
+                  />
+                </div>
+              </>
+            )}
+          />
+          <div className="mt-3 space-y-1.5 border-t pt-3 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Subtotal</span>
+              <span className="font-semibold tabular-nums">{peso(displaySubtotal)}</span>
+            </div>
+            {displayAdjustment !== 0 ? (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">
+                  {quote.adjustment_label || "Adjustment"}
+                </span>
+                <span className="font-semibold tabular-nums">{peso(displayAdjustment)}</span>
+              </div>
+            ) : null}
+            {quote.tax_type === "vatable" ? (
+              <>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">VATable Sales</span>
+                  <span className="font-semibold tabular-nums">{peso(quoteVat.vatableSales)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">VAT 12%</span>
+                  <span className="font-semibold tabular-nums">{peso(quoteVat.vat)}</span>
+                </div>
+              </>
+            ) : null}
+          </div>
+        </div>
+        <div className="hidden max-h-[24rem] overflow-auto md:block">
           <Table>
             <TableHeader className="sticky top-0 z-10 bg-card">
               <TableRow>

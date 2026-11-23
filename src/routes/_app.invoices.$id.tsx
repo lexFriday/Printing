@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
+import { MobileCardList, MobileDetailRow } from "@/components/MobileCardList";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -702,7 +703,68 @@ function InvoiceDetails() {
                 : "Entered directly on this invoice."}
           </p>
         </div>
-        <div className="max-h-[24rem] overflow-auto">
+        <div className="p-3 md:hidden">
+          <MobileCardList
+            items={[...lines].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))}
+            getKey={(l) => l.id}
+            empty="No line items."
+            getDetailTitle={(l) => l.description}
+            renderSummary={(l) => (
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="line-clamp-2 text-sm font-medium">{l.description}</div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">
+                    Qty {Number(l.quantity)} · {peso(l.unit_price)}
+                  </div>
+                </div>
+                <div className="shrink-0 font-semibold tabular-nums text-sm">
+                  {peso(l.line_total)}
+                </div>
+              </div>
+            )}
+            renderDetail={(l) => (
+              <>
+                <MobileDetailRow label="Qty" value={Number(l.quantity)} />
+                <MobileDetailRow label="Unit price" value={peso(l.unit_price)} />
+                <MobileDetailRow label="Amount" value={peso(l.line_total)} />
+              </>
+            )}
+          />
+          <div className="mt-3 space-y-1.5 border-t pt-3 text-sm">
+            {i.tax_type === "vatable" ? (
+              <>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">VATable sales</span>
+                  <span className="font-medium tabular-nums">{peso(vatableSales)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">VAT 12%</span>
+                  <span className="font-medium tabular-nums">{peso(vatAmount)}</span>
+                </div>
+                {ewtEnabled ? (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">
+                      {i.ewt_treatment_snapshot === "deducted_from_amount_due"
+                        ? "Less: EWT"
+                        : "EWT"}
+                    </span>
+                    <span className="font-medium tabular-nums">{peso(ewtAmount)}</span>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+            <div className="flex justify-between text-base font-semibold">
+              <span>
+                {i.tax_type === "vatable" &&
+                i.ewt_treatment_snapshot !== "deducted_from_amount_due"
+                  ? "Grand total"
+                  : "Amount due"}
+              </span>
+              <span className="tabular-nums">{peso(amountDue)}</span>
+            </div>
+          </div>
+        </div>
+        <div className="hidden max-h-[24rem] overflow-auto md:block">
           <Table>
             <TableHeader className="sticky top-0 z-10 bg-card">
               <TableRow>
