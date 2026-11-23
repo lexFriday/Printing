@@ -13,16 +13,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import {
-  Users,
-  FileText,
-  ClipboardList,
-  Receipt,
-  BarChart3,
   LogOut,
-  Settings,
-  ScrollText,
-  LayoutDashboard,
-  Package,
   RefreshCw,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,22 +25,7 @@ import {
   clearSiteCacheAndReload,
   recordIntentionalSignOut,
 } from "@/lib/appVersion";
-import {
-  canAccountingWork,
-  canViewJobOrders,
-  canManageUsers,
-  canManageOperationalSettings,
-  canSalesWork,
-  canViewMoneyWork,
-  canViewStatusOnly,
-  canViewFullReports,
-} from "@/lib/roles";
-
-const quoteItem = { title: "Quotes", url: "/quotes", icon: FileText };
-const jobItem = { title: "Job Orders", url: "/jobs", icon: ClipboardList };
-const invoiceItem = { title: "Invoices", url: "/invoices", icon: Receipt };
-const dashboardItem = { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard };
-const reportsItem = { title: "Reports", url: "/reports", icon: BarChart3 };
+import { getNavigationGroups } from "@/lib/navigation";
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
@@ -70,39 +46,9 @@ export function AppSidebar() {
       return (profiles ?? []).filter((profile) => !assigned.has(profile.id)).length;
     },
   });
-  const workflowItems = [
-    ...(canSalesWork(role) ? [quoteItem] : []),
-    ...(canViewJobOrders(role) && role !== "production" ? [jobItem] : []),
-    ...(canAccountingWork(role) || canViewFullReports(role) ? [invoiceItem] : []),
-  ];
-  const insightItems = [
-    ...(canViewFullReports(role) || canViewMoneyWork(role) || canViewStatusOnly(role)
-      ? [dashboardItem]
-      : []),
-    ...(canViewFullReports(role) || canViewMoneyWork(role) ? [reportsItem] : []),
-  ];
+  const { workflowItems, insightItems, administrationItems: visibleAdministrationItems } =
+    getNavigationGroups(role);
   const operationsItems: typeof workflowItems = [];
-  const administrationItems = canSalesWork(role)
-    ? [
-        { title: "Business Directory", url: "/customers", icon: Users },
-        { title: "Item Templates", url: "/settings/item-templates", icon: Package },
-      ]
-    : [];
-  const personalSignatureItem = role && !canManageUsers(role)
-    ? [{ title: "My signature", url: "/settings/users", icon: Settings }]
-    : [];
-  const visibleAdministrationItems = canManageOperationalSettings(role)
-    ? [
-        ...administrationItems,
-        ...personalSignatureItem,
-        ...(canManageUsers(role)
-          ? [
-              { title: "Users", url: "/settings/users", icon: Settings },
-              { title: "Audit Logs", url: "/settings/audit-logs", icon: ScrollText },
-            ]
-          : []),
-      ]
-    : [...administrationItems, ...personalSignatureItem];
 
   const renderNavigationGroup = (label: string, items: typeof workflowItems) => (
       <SidebarGroup className="py-1">

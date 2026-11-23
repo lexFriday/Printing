@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 const [roles, sidebar, jobs, production, users, types, enumMigration, permissionMigration] = await Promise.all([
-  read("src/lib/roles.ts"), read("src/components/AppSidebar.tsx"), read("src/routes/_app.jobs.tsx"),
+  read("src/lib/roles.ts"), read("src/lib/navigation.ts"), read("src/routes/_app.jobs.tsx"),
   read("src/routes/_app.production.$jobOrderId.tsx"), read("src/routes/_app.settings.users.tsx"),
   read("src/integrations/supabase/types.ts"), read("supabase/migrations/20260909182000_add_production_role.sql"),
   read("supabase/migrations/20260909183000_production_role_permissions.sql"),

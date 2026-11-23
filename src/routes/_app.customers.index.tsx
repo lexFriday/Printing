@@ -158,7 +158,37 @@ function CustomersPage() {
             {list.isLoading ? "Loading customers..." : `${list.data?.length ?? 0} customer records`}
           </p>
         </div>
-        <div className="max-h-[calc(100dvh-16rem)] overscroll-contain overflow-auto">
+        <div className="space-y-2.5 md:hidden">
+          {list.isLoading ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">Loading customers…</p>
+          ) : (list.data ?? []).length === 0 ? (
+            <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+              No customers yet
+            </div>
+          ) : (
+            list.data!.map((c) => (
+              <Link
+                key={c.id}
+                to="/customers/$id"
+                params={{ id: c.id }}
+                className="block rounded-lg border bg-background p-3.5 transition-colors active:bg-muted/60"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-mono text-xs text-muted-foreground">
+                      {c.customer_code}
+                    </div>
+                    <div className="mt-0.5 truncate font-medium">{c.customer_name}</div>
+                    <div className="truncate text-xs text-muted-foreground">
+                      {c.contact_person || "—"} · {c.contact_number || "—"}
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            ))
+          )}
+        </div>
+        <div className="hidden max-h-[calc(100dvh-16rem)] overscroll-contain overflow-auto md:block">
           <Table className="min-w-[760px]">
             <TableHeader>
               <TableRow>

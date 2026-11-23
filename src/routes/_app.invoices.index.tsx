@@ -80,7 +80,7 @@ function InvoicesList() {
             />
           </div>
           <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-full sm:w-[160px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -90,7 +90,52 @@ function InvoicesList() {
             </SelectContent>
           </Select>
         </div>
-        <div className="min-w-0 max-h-[calc(100dvh-16rem)] overscroll-contain overflow-auto">
+        <div className="space-y-2.5 md:hidden">
+          {list.isLoading ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">Loading invoices…</p>
+          ) : (list.data ?? []).length === 0 ? (
+            <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+              No invoices yet. Create one here or generate one from a completed job order.
+            </div>
+          ) : (
+            list.data!.map((i) => (
+              <Link
+                key={i.id}
+                to="/invoices/$id"
+                params={{ id: i.id }}
+                className="block rounded-lg border bg-background p-3.5 transition-colors active:bg-muted/60"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-mono text-xs text-muted-foreground">
+                      {i.invoice_number}
+                    </div>
+                    <div className="mt-0.5 truncate font-medium">
+                      {(i.job_order as { project_name: string } | null)?.project_name ??
+                        "Standalone invoice"}
+                    </div>
+                    <div className="truncate text-xs text-muted-foreground">
+                      {(i.customer as { customer_name: string } | null)?.customer_name ?? "—"}
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <div className="font-semibold tabular-nums">
+                      {peso(i.amount_due_snapshot ?? i.invoice_amount)}
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-muted-foreground">
+                      {fmtDate(i.invoice_date)}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                  <TaxPill taxType={i.tax_type} />
+                  <StatusBadge status={i.status} />
+                </div>
+              </Link>
+            ))
+          )}
+        </div>
+        <div className="hidden min-w-0 max-h-[calc(100dvh-16rem)] overscroll-contain overflow-auto md:block">
           <Table className="min-w-[900px] table-auto">
             <TableHeader>
               <TableRow>

@@ -118,7 +118,7 @@ function QuotesList() {
             />
           </div>
           <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-full sm:w-[160px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -131,7 +131,62 @@ function QuotesList() {
             </SelectContent>
           </Select>
         </div>
-        <div className="min-w-0 max-h-[calc(100dvh-16rem)] overscroll-contain overflow-auto rounded-md border">
+        <div className="space-y-2.5 md:hidden">
+          {list.isLoading ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">Loading quotes…</p>
+          ) : (list.data ?? []).length === 0 ? (
+            <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+              {canWrite ? (
+                <>
+                  No quotes yet.{" "}
+                  <Link
+                    to="/quotes/new"
+                    search={{ customerId: undefined }}
+                    className="text-primary underline"
+                  >
+                    Create your first quote
+                  </Link>
+                </>
+              ) : (
+                "No quotes yet."
+              )}
+            </div>
+          ) : (
+            list.data!.map((q) => (
+              <Link
+                key={q.id}
+                to="/quotes/$id"
+                params={{ id: q.id }}
+                className="block rounded-lg border bg-background p-3.5 transition-colors active:bg-muted/60"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-mono text-xs text-muted-foreground">{q.quote_number}</div>
+                    <div className="mt-0.5 truncate font-medium">{q.project_name}</div>
+                    <div className="truncate text-xs text-muted-foreground">
+                      {(q.customer as { customer_name: string } | null)?.customer_name ?? "—"}
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <div className="font-semibold tabular-nums">
+                      {peso(computeQuoteDisplayTotal(q))}
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-muted-foreground">
+                      {fmtDate(q.quote_date)}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                  <StatusBadge status={q.status} />
+                  <span className="whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                    {q.tax_type === "vatable" ? "VAT" : "Non-VAT"}
+                  </span>
+                </div>
+              </Link>
+            ))
+          )}
+        </div>
+        <div className="hidden min-w-0 max-h-[calc(100dvh-16rem)] overscroll-contain overflow-auto rounded-md border md:block">
           <Table className="w-full min-w-[760px] table-fixed">
             <TableHeader>
               <TableRow>

@@ -1,11 +1,13 @@
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { MobileNav } from "@/components/MobileNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect } from "react";
 import { Clock3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { APP_LOGO_PATH, APP_NAME } from "@/lib/brand";
 import { recordIntentionalSignOut } from "@/lib/appVersion";
 
 export const Route = createFileRoute("/_app")({
@@ -39,16 +41,29 @@ function AppLayout() {
       <div className="flex min-h-screen min-w-0 w-full bg-background">
         <AppSidebar />
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 flex h-14 min-w-0 items-center gap-2 border-b bg-card/50 px-4 backdrop-blur">
-            <SidebarTrigger />
+          <header className="sticky top-0 z-30 flex h-14 min-w-0 items-center justify-between gap-2 border-b bg-card/85 px-3 backdrop-blur md:px-4">
+            <div className="flex items-center gap-2">
+              <SidebarTrigger className="hidden md:inline-flex" />
+              <img
+                src={APP_LOGO_PATH}
+                alt={APP_NAME}
+                className="h-6 w-auto object-contain md:hidden"
+              />
+            </div>
+            {role ? (
+              <span className="rounded-full border bg-muted/60 px-2.5 py-0.5 text-[11px] font-medium capitalize text-muted-foreground md:hidden">
+                {role}
+              </span>
+            ) : null}
           </header>
-          <main className="mx-auto min-w-0 w-full max-w-[1400px] flex-1 p-4 sm:p-5 lg:p-6">
+          <main className="mx-auto min-w-0 w-full max-w-[1400px] flex-1 p-3 pb-24 sm:p-5 md:pb-6 lg:p-6">
             {roleLoading && !role ? (
               <div className="text-sm text-muted-foreground">Loading workspace…</div>
             ) : (
               <Outlet />
             )}
           </main>
+          <MobileNav />
         </div>
       </div>
     </SidebarProvider>
