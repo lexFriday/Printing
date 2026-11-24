@@ -29,6 +29,13 @@
       "when": 1795509300000,
       "tag": "0003_drop_profiles_signature_backfill_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795510800000,
+      "tag": "0004_grant_public_tables_and_sequences",
+      "breakpoints": true
     }
   ]
 }
