@@ -43,6 +43,13 @@
       "when": 1795510800000,
       "tag": "0005_grant_public_tables_and_sequences",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795511457341,
+      "tag": "0006_grant_public_tables_and_sequences",
+      "breakpoints": true
     }
   ]
 }
