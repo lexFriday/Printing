@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { KeyboardEvent, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Borders } from "exceljs";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -2242,7 +2243,7 @@ function Reports() {
       { width: 16 },
     ];
 
-    const thinBorder: Partial<ExcelJS.Borders> = {
+    const thinBorder: Partial<Borders> = {
       top: { style: "thin", color: { argb: "FF777777" } },
       left: { style: "thin", color: { argb: "FF777777" } },
       bottom: { style: "thin", color: { argb: "FF777777" } },

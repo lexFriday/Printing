@@ -33,8 +33,15 @@
     {
       "idx": 4,
       "version": "7",
+      "when": 1795509504034,
+      "tag": "0004_apply_pending_quote_attachment_and_signature_updates",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
       "when": 1795510800000,
-      "tag": "0004_grant_public_tables_and_sequences",
+      "tag": "0005_grant_public_tables_and_sequences",
       "breakpoints": true
     }
   ]
