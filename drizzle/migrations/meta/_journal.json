@@ -50,6 +50,13 @@
       "when": 1795511457341,
       "tag": "0006_grant_public_tables_and_sequences",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795512000000,
+      "tag": "0007_fix_workflow_drafts_rls_and_customers_grant",
+      "breakpoints": true
     }
   ]
 }
