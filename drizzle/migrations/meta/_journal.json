@@ -64,6 +64,13 @@
       "when": 1795512157568,
       "tag": "0008_fix_workflow_drafts_rls_and_customers_grant",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795512900000,
+      "tag": "0009_drop_workflow_drafts_customer_fk",
+      "breakpoints": true
     }
   ]
 }
