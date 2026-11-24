@@ -71,6 +71,13 @@
       "when": 1795512900000,
       "tag": "0009_drop_workflow_drafts_customer_fk",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795513276889,
+      "tag": "0010_drop_workflow_drafts_customer_fk",
+      "breakpoints": true
     }
   ]
 }

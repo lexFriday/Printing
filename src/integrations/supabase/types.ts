@@ -2022,22 +2022,7 @@ export type Database = {
           version?: number
           workflow?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "workflow_drafts_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "customer_operational_summaries"
-            referencedColumns: ["customer_id"]
-          },
-          {
-            foreignKeyName: "workflow_drafts_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "customers"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Views: {
