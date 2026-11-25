@@ -38,6 +38,17 @@ export function AppUpdateBanner() {
       const remote = await fetchRemoteAppVersion();
       const targetVersion = remote || APP_VERSION;
 
+      if (remote && remote !== APP_VERSION) {
+        try {
+          const reloadKey = `automate:auto-reloaded:${remote}`;
+          if (!window.sessionStorage.getItem(reloadKey)) {
+            window.sessionStorage.setItem(reloadKey, "1");
+            await clearSiteCacheAndReload({ clearAuth: false, targetVersion: remote });
+            return;
+          }
+        } catch {}
+      }
+
       if (!stored || stored !== targetVersion || (remote && remote !== APP_VERSION)) {
         setUpdateVersion(targetVersion);
       } else {

@@ -644,13 +644,13 @@ function NewQuote() {
       ) : null}
 
       {canWrite && serverDrafts.data?.length ? (
-        <Card className="space-y-3 rounded-xl border-primary/10 p-4 shadow-sm">
-          <div className="flex items-start justify-between gap-3">
-            <div>
+        <Card className="min-w-0 space-y-3 rounded-xl border-primary/10 p-4 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
               <h2 className="font-semibold">Continue saved progress</h2>
               <p className="mt-1 text-sm text-muted-foreground">These are unfinished drafts, not quotations. Reference images must be uploaded again on this device.</p>
             </div>
-            <div className="flex shrink-0 gap-2">
+            <div className="flex flex-wrap shrink-0 gap-2">
               <Button type="button" onClick={startNewQuote}>Start new quote</Button>
               <Button type="button" variant="outline" onClick={() => setDraftListOpen((open) => !open)}>{draftListOpen ? "Hide" : "Show"}</Button>
             </div>
@@ -688,12 +688,12 @@ function NewQuote() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
-        <div className="space-y-3">
+      <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
+        <div className="min-w-0 space-y-3">
       <Card className="min-w-0 space-y-4 rounded-xl border-primary/10 p-4 shadow-sm">
         <div className="flex items-start gap-3">
           <StepBadge>1</StepBadge>
-          <div>
+          <div className="min-w-0">
             <h2 className="font-semibold">Customer and tax details</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Pick the customer once. TIN and address stay on the customer record.
@@ -701,7 +701,7 @@ function NewQuote() {
           </div>
         </div>
         <div className="grid min-w-0 gap-4 md:grid-cols-2">
-          <div className="space-y-2">
+          <div className="min-w-0 space-y-2">
             <Label>Customer *</Label>
             <CustomerPicker
               value={customerId}
