@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useRef, useState, type CSSPropert
 import {
   ArrowLeft,
   Download,
+  FileSpreadsheet,
   Laptop,
   Monitor,
   Printer,
@@ -859,6 +860,7 @@ export function PrintShell({
           ) : null}
           {!hideDownloadExcel && downloadExcel ? (
             <Button variant="outline" onClick={downloadExcel}>
+              <FileSpreadsheet className="h-4 w-4" />
               Download Excel
             </Button>
           ) : null}

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { ArrowDown, FileText, Printer } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { PrintShell, usePrintCalibrationContext } from "@/components/print/PrintShell";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,6 +13,7 @@ import { computeInclusiveVat } from "@/lib/calc";
 import { fmtDate } from "@/lib/format";
 import { addTemplateBackground, drawPreprintedText, fitPreprintedFontSize } from "@/lib/preprintedPdf";
 import { generateDeliveryReceiptPdf } from "@/lib/physicalPrintPdf";
+import { downloadDeliveryReceiptExcel } from "@/lib/documentExcelExport";
 import { formatPrintMoney, formatPrintQty } from "@/lib/printFormat";
 import {
   DEFAULT_PRINT_CALIBRATION,
@@ -249,8 +251,31 @@ function DeliveryReceiptPrintPage() {
         label: job.data.job_number,
         jobData: { ...job.data, customer: printCustomer, quotation, lines: displayLines, priced, includePo },
       }}
+      downloadExcel={() =>
+        void downloadDeliveryReceiptExcel({
+          jobNumber: job.data.job_number,
+          quoteNumber: quotation?.quote_number ?? null,
+          date: printProps.date,
+          customerName: printCustomer?.customer_name ?? "",
+          customerAddress: printCustomer?.address,
+          customerTin: printCustomer?.tin_number,
+          clientPoNumber: printProps.clientPoNumber,
+          projectName: job.data.project_name,
+          priced,
+          includePo,
+          lines: displayLines.map((line) => ({
+            description: line.description,
+            quantity: Number(line.quantity ?? 0),
+            unitPrice: Number(line.unit_price ?? 0),
+            lineTotal: Number(line.line_total ?? 0),
+          })),
+          totalAmount,
+        }).then(
+          () => toast.success("Excel delivery receipt downloaded"),
+          (err) => toast.error(err instanceof Error ? err.message : "Could not export Excel."),
+        )
+      }
       hideDownloadPdf={true}
-      hideDownloadExcel={true}
     >
       <div className="mx-auto w-full max-w-[8.5in] space-y-5 print:hidden">
         <DeliveryReceiptDetailsCard

@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fmtDate } from "@/lib/format";
 import { addTemplateBackground, drawPreprintedText } from "@/lib/preprintedPdf";
 import { generateServiceInvoicePdf } from "@/lib/physicalPrintPdf";
+import { downloadSalesInvoiceExcel } from "@/lib/documentExcelExport";
 import { formatPrintMoney, formatPrintQty } from "@/lib/printFormat";
 import {
   DEFAULT_PRINT_CALIBRATION,
@@ -340,6 +341,37 @@ function PrintInvoicePage() {
           "standard",
           "/templates/service-invoice-template.jpg",
           calibration,
+        )
+      }
+      downloadExcel={() =>
+        void downloadSalesInvoiceExcel({
+          invoiceNumber: invoice.data.invoice_number,
+          invoiceDate: invoice.data.invoice_date,
+          customerName: printCustomer?.customer_name ?? "",
+          customerAddress: printCustomer?.address,
+          customerTin: printCustomer?.tin_number,
+          clientPoNumber: activeClientPo || null,
+          projectName: projectName || null,
+          taxType: invoice.data.tax_type ?? "non_vat",
+          lines: printedLines.map((line) => ({
+            description: line.description,
+            quantity: Number(line.quantity ?? 0),
+            unit: (line as { unit?: string | null; unit_of_measure?: string | null }).unit ??
+              (line as { unit_of_measure?: string | null }).unit_of_measure ??
+              null,
+            unitPrice: Number(line.unit_price ?? 0),
+            lineTotal: Number(line.line_total ?? 0),
+          })),
+          grossTotal: printableGrossTotal,
+          vatableSales: effectiveVatableSales,
+          vatAmount: effectiveVatAmount,
+          ewtEnabled: activeShowEwt,
+          ewtAmount: computedEwtAmount,
+          ewtTreatment: invoice.data.ewt_treatment_snapshot,
+          amountDue: computedAmountDue,
+        }).then(
+          () => toast.success("Excel invoice downloaded"),
+          (err) => toast.error(err instanceof Error ? err.message : "Could not export Excel."),
         )
       }
       directPrintJob={{
