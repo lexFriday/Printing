@@ -1,5 +1,4 @@
 import type ExcelJS from "exceljs";
-import { COMPANY_PROFILE } from "./brand";
 import { fmtDate } from "./format";
 
 export interface SalesInvoiceExcelInput {
@@ -34,6 +33,7 @@ export interface DeliveryReceiptExcelInput {
   customerName: string;
   customerAddress?: string | null;
   customerTin?: string | null;
+  terms?: string | null;
   clientPoNumber?: string | null;
   projectName?: string | null;
   priced: boolean;
@@ -41,24 +41,14 @@ export interface DeliveryReceiptExcelInput {
   lines: Array<{
     description: string;
     quantity: number;
+    unit?: string | null;
     unitPrice?: number;
     lineTotal?: number;
   }>;
+  lineSubtotal?: number;
+  vatAmount?: number;
   totalAmount?: number;
 }
-
-const THIN_BORDER: Partial<ExcelJS.Borders> = {
-  top: { style: "thin", color: { argb: "FFCBD5E1" } },
-  left: { style: "thin", color: { argb: "FFCBD5E1" } },
-  bottom: { style: "thin", color: { argb: "FFCBD5E1" } },
-  right: { style: "thin", color: { argb: "FFCBD5E1" } },
-};
-
-const HEADER_FILL: ExcelJS.Fill = {
-  type: "pattern",
-  pattern: "solid",
-  fgColor: { argb: "FFE8EEF5" },
-};
 
 function downloadWorkbookBuffer(buffer: ArrayBuffer | Uint8Array, fileName: string) {
   const blob = new Blob([buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer)], {
@@ -72,70 +62,8 @@ function downloadWorkbookBuffer(buffer: ArrayBuffer | Uint8Array, fileName: stri
   URL.revokeObjectURL(url);
 }
 
-function addDocumentHeader(
-  ws: ExcelJS.Worksheet,
-  colCount: number,
-  title: string,
-  subtitle: string,
-) {
-  const endCol = String.fromCharCode(64 + colCount);
-  ws.mergeCells(`A1:${endCol}1`);
-  const companyCell = ws.getCell("A1");
-  companyCell.value = COMPANY_PROFILE.name.toUpperCase();
-  companyCell.font = { name: "Arial", size: 13, bold: true };
-  companyCell.alignment = { horizontal: "center", vertical: "middle" };
-  ws.getRow(1).height = 22;
-
-  ws.mergeCells(`A2:${endCol}2`);
-  const addressCell = ws.getCell("A2");
-  addressCell.value = `${COMPANY_PROFILE.address} · TIN ${COMPANY_PROFILE.tin}`;
-  addressCell.font = { name: "Arial", size: 9, color: { argb: "FF475569" } };
-  addressCell.alignment = { horizontal: "center", vertical: "middle" };
-
-  ws.mergeCells(`A3:${endCol}3`);
-  const titleCell = ws.getCell("A3");
-  titleCell.value = title;
-  titleCell.font = { name: "Arial", size: 12, bold: true, color: { argb: "FF1E293B" } };
-  titleCell.alignment = { horizontal: "center", vertical: "middle" };
-  ws.getRow(3).height = 22;
-
-  ws.mergeCells(`A4:${endCol}4`);
-  const subCell = ws.getCell("A4");
-  subCell.value = subtitle;
-  subCell.font = { name: "Arial", size: 10, bold: true, color: { argb: "FF334155" } };
-  subCell.alignment = { horizontal: "center", vertical: "middle" };
-}
-
-function addMetaPairs(
-  ws: ExcelJS.Worksheet,
-  pairs: Array<[string, string]>,
-  colCount: number,
-) {
-  const endCol = String.fromCharCode(64 + colCount);
-  ws.addRow([]);
-  for (const [label, value] of pairs) {
-    const row = ws.addRow([label, value]);
-    row.getCell(1).font = { name: "Arial", size: 9, bold: true, color: { argb: "FF475569" } };
-    row.getCell(2).font = { name: "Arial", size: 10 };
-    if (colCount > 2) {
-      ws.mergeCells(`B${row.number}:${endCol}${row.number}`);
-    }
-    row.getCell(2).alignment = { horizontal: "left", vertical: "middle", wrapText: true };
-  }
-  ws.addRow([]);
-}
-
-function styleTableHeader(row: ExcelJS.Row, rightAlignedCols: number[]) {
-  row.height = 22;
-  row.eachCell((cell, colNumber) => {
-    cell.font = { name: "Arial", size: 10, bold: true, color: { argb: "FF0F172A" } };
-    cell.fill = HEADER_FILL;
-    cell.border = THIN_BORDER;
-    cell.alignment = {
-      horizontal: rightAlignedCols.includes(colNumber) ? "right" : "left",
-      vertical: "middle",
-    };
-  });
+function upper(value?: string | null): string {
+  return (value ?? "").trim().toUpperCase();
 }
 
 export async function downloadSalesInvoiceExcel(input: SalesInvoiceExcelInput) {
@@ -145,93 +73,78 @@ export async function downloadSalesInvoiceExcel(input: SalesInvoiceExcelInput) {
     pageSetup: { paperSize: 1, orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
   });
 
-  ws.columns = [
-    { width: 10 },
-    { width: 12 },
-    { width: 46 },
-    { width: 16 },
-    { width: 18 },
-  ];
+  // Match ServiceInvoiceForm columns: Description | Qty | Unit Price | Amount
+  ws.columns = [{ width: 44 }, { width: 8 }, { width: 14 }, { width: 16 }];
 
-  const isVatable = input.taxType === "vatable";
-  addDocumentHeader(
-    ws,
-    5,
-    "SALES INVOICE",
-    `${input.invoiceNumber} · ${fmtDate(input.invoiceDate)} · ${isVatable ? "VATABLE" : "NON-VAT"}`,
-  );
+  const dateRow = ws.addRow(["", "", "", fmtDate(input.invoiceDate).toUpperCase()]);
+  dateRow.getCell(4).font = { name: "Arial", size: 10, bold: true };
+  dateRow.getCell(4).alignment = { horizontal: "right", vertical: "middle" };
 
-  addMetaPairs(
-    ws,
-    [
-      ["Sold to", input.customerName || "—"],
-      ["TIN", input.customerTin || "—"],
-      ["Address", input.customerAddress || "—"],
-      ...(input.projectName ? [["Project", input.projectName] as [string, string]] : []),
-      ...(input.clientPoNumber ? [["PO Number", input.clientPoNumber] as [string, string]] : []),
-    ],
-    5,
-  );
+  const soldToRow = ws.addRow([upper(input.customerName)]);
+  soldToRow.getCell(1).font = { name: "Arial", size: 9, bold: true };
 
-  const headerRow = ws.addRow(["QTY", "UNIT", "DESCRIPTION", "UNIT PRICE", "AMOUNT"]);
-  styleTableHeader(headerRow, [1, 4, 5]);
+  const projectOrCustomer = upper(input.projectName) || upper(input.customerName);
+  const poRow = ws.addRow([projectOrCustomer]);
+  poRow.getCell(1).font = { name: "Arial", size: 8, bold: true };
+  poRow.getCell(1).alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+  if (input.clientPoNumber) {
+    const poCell = poRow.getCell(4);
+    poCell.value = {
+      richText: [
+        { text: "CE/P.O NO: ", font: { name: "Arial", size: 9, bold: true, color: { argb: "FF000000" } } },
+        { text: upper(input.clientPoNumber), font: { name: "Arial", size: 9, bold: true, color: { argb: "FFDC2626" } } },
+      ],
+    };
+    poCell.alignment = { horizontal: "right", vertical: "middle" };
+  }
+
+  const tinRow = ws.addRow([upper(input.customerTin)]);
+  tinRow.getCell(1).font = { name: "Arial", size: 9, bold: true };
+
+  const addrRow = ws.addRow([upper(input.customerAddress)]);
+  addrRow.getCell(1).font = { name: "Arial", size: 8, bold: true };
+  addrRow.getCell(1).alignment = { horizontal: "left", vertical: "top", wrapText: true };
+
+  ws.addRow([]);
 
   for (const line of input.lines) {
-    const row = ws.addRow([
-      line.quantity,
-      line.unit || "",
-      line.description,
-      line.unitPrice,
-      line.lineTotal,
-    ]);
-    row.eachCell((cell, col) => {
-      cell.font = { name: "Arial", size: 10 };
-      cell.border = THIN_BORDER;
-      cell.alignment = {
-        horizontal: col === 1 || col >= 4 ? "right" : "left",
-        vertical: "top",
-        wrapText: true,
-      };
-      if (col === 4 || col === 5) cell.numFmt = "#,##0.00";
-    });
+    if (line.description === "[BLANK_LINE]") continue;
+    const row = ws.addRow([upper(line.description), line.quantity, line.unitPrice, line.lineTotal]);
+    row.getCell(1).font = { name: "Arial", size: 9, bold: true };
+    row.getCell(1).alignment = { horizontal: "left", vertical: "top", wrapText: true };
+    row.getCell(2).font = { name: "Arial", size: 10, bold: true };
+    row.getCell(2).alignment = { horizontal: "right", vertical: "top" };
+    row.getCell(3).font = { name: "Arial", size: 10, bold: true };
+    row.getCell(3).alignment = { horizontal: "right", vertical: "top" };
+    row.getCell(3).numFmt = "#,##0.00";
+    row.getCell(4).font = { name: "Arial", size: 10, bold: true };
+    row.getCell(4).alignment = { horizontal: "right", vertical: "top" };
+    row.getCell(4).numFmt = "#,##0.00";
   }
 
   ws.addRow([]);
 
-  const summaryRows: Array<[string, number, boolean]> = [
-    ["Total Sales", input.grossTotal, false],
-    ...(isVatable
-      ? ([
-          ["VATable Sales", input.vatableSales, false],
-          ["12% VAT", input.vatAmount, false],
-        ] as Array<[string, number, boolean]>)
-      : []),
-    ...(input.ewtEnabled
-      ? ([
-          [
-            input.ewtTreatment === "deducted_from_amount_due" ? "Less: EWT" : "EWT",
-            input.ewtAmount,
-            false,
-          ],
-        ] as Array<[string, number, boolean]>)
-      : []),
-    ["Total Amount Due", input.amountDue, true],
+  const isVatable = input.taxType === "vatable";
+  const showEwt = input.ewtEnabled && input.ewtAmount > 0;
+  const finalAmount = showEwt ? Math.max(input.grossTotal - input.ewtAmount, 0) : input.amountDue;
+
+  // Match the 7 pre-printed total slots in ServiceInvoiceForm (no labels, values only)
+  const totalSlots: Array<{ value: number | ""; size?: number }> = [
+    { value: input.grossTotal },
+    { value: isVatable ? input.vatAmount : "" },
+    { value: isVatable ? input.vatableSales : input.amountDue },
+    { value: "" },
+    { value: isVatable ? input.vatAmount : "" },
+    { value: showEwt ? input.ewtAmount : "" },
+    { value: finalAmount, size: 11 },
   ];
 
-  for (const [label, amount, bold] of summaryRows) {
-    const row = ws.addRow(["", "", "", label, amount]);
-    const labelCell = row.getCell(4);
-    const valCell = row.getCell(5);
-    labelCell.font = { name: "Arial", size: 10, bold: true };
-    labelCell.alignment = { horizontal: "right", vertical: "middle" };
-    labelCell.border = THIN_BORDER;
-    if (bold) labelCell.fill = HEADER_FILL;
-
-    valCell.numFmt = "#,##0.00";
-    valCell.font = { name: "Arial", size: bold ? 11 : 10, bold };
-    valCell.alignment = { horizontal: "right", vertical: "middle" };
-    valCell.border = THIN_BORDER;
-    if (bold) valCell.fill = HEADER_FILL;
+  for (const slot of totalSlots) {
+    const row = ws.addRow(["", "", "", slot.value]);
+    const cell = row.getCell(4);
+    cell.font = { name: "Arial", size: slot.size ?? 10, bold: true };
+    cell.alignment = { horizontal: "right", vertical: "middle" };
+    if (typeof slot.value === "number") cell.numFmt = "#,##0.00";
   }
 
   const buffer = await wb.xlsx.writeBuffer();
@@ -245,78 +158,77 @@ export async function downloadDeliveryReceiptExcel(input: DeliveryReceiptExcelIn
     pageSetup: { paperSize: 1, orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
   });
 
-  const colCount = input.priced ? 5 : 3;
-  ws.columns = input.priced
-    ? [
-        { width: 10 },
-        { width: 12 },
-        { width: 46 },
-        { width: 16 },
-        { width: 18 },
-      ]
-    : [{ width: 10 }, { width: 14 }, { width: 62 }];
+  // Match DeliveryReceiptForm columns: Qty | Unit | Description | Unit Price | Amount
+  ws.columns = [{ width: 8 }, { width: 10 }, { width: 34 }, { width: 12 }, { width: 14 }];
 
-  const poValue = input.includePo ? input.clientPoNumber || input.quoteNumber : null;
-  addDocumentHeader(
-    ws,
-    colCount,
-    "DELIVERY RECEIPT",
-    `${input.jobNumber} · ${fmtDate(input.date)}`,
-  );
+  const dateRow = ws.addRow(["", "", "", "", fmtDate(input.date).toUpperCase()]);
+  dateRow.getCell(5).font = { name: "Arial", size: 9, bold: true };
+  dateRow.getCell(5).alignment = { horizontal: "right", vertical: "middle" };
 
-  addMetaPairs(
-    ws,
-    [
-      ["Delivered to", input.customerName || "—"],
-      ["TIN", input.customerTin || "—"],
-      ["Address", input.customerAddress || "—"],
-      ...(input.projectName ? [["Project", input.projectName] as [string, string]] : []),
-      ...(poValue ? [["PO / Ref", poValue] as [string, string]] : []),
-    ],
-    colCount,
-  );
+  const custRow = ws.addRow([upper(input.customerName)]);
+  custRow.getCell(1).font = { name: "Arial", size: 9, bold: true };
 
-  const headers = input.priced
-    ? ["ITEM", "QTY", "DESCRIPTION", "UNIT PRICE", "AMOUNT"]
-    : ["ITEM", "QTY", "DESCRIPTION"];
-  const headerRow = ws.addRow(headers);
-  styleTableHeader(headerRow, input.priced ? [2, 4, 5] : [2]);
+  const tinTermsRow = ws.addRow([upper(input.customerTin), "", "", "", upper(input.terms)]);
+  tinTermsRow.getCell(1).font = { name: "Arial", size: 9, bold: true };
+  tinTermsRow.getCell(5).font = { name: "Arial", size: 8, bold: true };
+  tinTermsRow.getCell(5).alignment = { horizontal: "right", vertical: "middle" };
 
-  input.lines.forEach((line, idx) => {
-    const rowValues = input.priced
-      ? [idx + 1, line.quantity, line.description, line.unitPrice ?? 0, line.lineTotal ?? 0]
-      : [idx + 1, line.quantity, line.description];
-    const row = ws.addRow(rowValues);
-    row.eachCell((cell, col) => {
-      cell.font = { name: "Arial", size: 10 };
-      cell.border = THIN_BORDER;
-      cell.alignment = {
-        horizontal: col === 1 ? "center" : col === 2 || col >= 4 ? "right" : "left",
-        vertical: "top",
-        wrapText: true,
-      };
-      if (col === 4 || col === 5) cell.numFmt = "#,##0.00";
-    });
-  });
-
-  if (input.priced && input.totalAmount !== undefined) {
-    ws.addRow([]);
-    const totalRow = ws.addRow(["", "", "", "TOTAL", input.totalAmount]);
-    totalRow.getCell(4).font = { name: "Arial", size: 10, bold: true };
-    totalRow.getCell(4).alignment = { horizontal: "right", vertical: "middle" };
-    totalRow.getCell(4).border = THIN_BORDER;
-    totalRow.getCell(4).fill = HEADER_FILL;
-    totalRow.getCell(5).numFmt = "#,##0.00";
-    totalRow.getCell(5).font = { name: "Arial", size: 11, bold: true };
-    totalRow.getCell(5).alignment = { horizontal: "right", vertical: "middle" };
-    totalRow.getCell(5).border = THIN_BORDER;
-    totalRow.getCell(5).fill = HEADER_FILL;
-  }
+  const poValue = input.includePo ? upper(input.quoteNumber || input.clientPoNumber) : "";
+  const addrPoRow = ws.addRow([upper(input.customerAddress), "", "", "", poValue]);
+  addrPoRow.getCell(1).font = { name: "Arial", size: 8, bold: true };
+  addrPoRow.getCell(1).alignment = { horizontal: "left", vertical: "top", wrapText: true };
+  addrPoRow.getCell(5).font = { name: "Arial", size: 9, bold: true };
+  addrPoRow.getCell(5).alignment = { horizontal: "right", vertical: "middle" };
 
   ws.addRow([]);
-  const sigRow = ws.addRow(["", "", "Received in good order and condition by: ___________________________   Date: ____________"]);
-  sigRow.getCell(3).font = { name: "Arial", size: 9, italic: true, color: { argb: "FF475569" } };
+
+  for (const line of input.lines) {
+    const values = input.priced
+      ? [
+          line.quantity,
+          upper(line.unit) || "PCS",
+          upper(line.description),
+          line.unitPrice ?? 0,
+          line.lineTotal ?? 0,
+        ]
+      : [line.quantity, upper(line.unit) || "PCS", upper(line.description)];
+    const row = ws.addRow(values);
+    row.getCell(1).font = { name: "Arial", size: 9, bold: true };
+    row.getCell(1).alignment = { horizontal: "center", vertical: "top" };
+    row.getCell(2).font = { name: "Arial", size: 9, bold: true };
+    row.getCell(2).alignment = { horizontal: "center", vertical: "top" };
+    row.getCell(3).font = { name: "Arial", size: 8, bold: true };
+    row.getCell(3).alignment = { horizontal: "left", vertical: "top", wrapText: true };
+    if (input.priced) {
+      row.getCell(4).font = { name: "Arial", size: 9, bold: true };
+      row.getCell(4).alignment = { horizontal: "right", vertical: "top" };
+      row.getCell(4).numFmt = "#,##0.00";
+      row.getCell(5).font = { name: "Arial", size: 9, bold: true };
+      row.getCell(5).alignment = { horizontal: "right", vertical: "top" };
+      row.getCell(5).numFmt = "#,##0.00";
+    }
+  }
+
+  if (input.priced) {
+    ws.addRow([]);
+    const subtotalRow = ws.addRow(["", "", "", "SUBTOTAL", input.lineSubtotal ?? input.totalAmount ?? 0]);
+    subtotalRow.getCell(4).font = { name: "Arial", size: 8, bold: true };
+    subtotalRow.getCell(4).alignment = { horizontal: "right", vertical: "middle" };
+    subtotalRow.getCell(5).font = { name: "Arial", size: 9, bold: true };
+    subtotalRow.getCell(5).alignment = { horizontal: "right", vertical: "middle" };
+    subtotalRow.getCell(5).numFmt = "#,##0.00";
+
+    const vatRow = ws.addRow(["", "", "", "", input.vatAmount ?? 0]);
+    vatRow.getCell(5).font = { name: "Arial", size: 9, bold: true };
+    vatRow.getCell(5).alignment = { horizontal: "right", vertical: "middle" };
+    vatRow.getCell(5).numFmt = "#,##0.00";
+
+    const totalRow = ws.addRow(["", "", "", "", input.totalAmount ?? 0]);
+    totalRow.getCell(5).font = { name: "Arial", size: 9, bold: true };
+    totalRow.getCell(5).alignment = { horizontal: "right", vertical: "middle" };
+    totalRow.getCell(5).numFmt = "#,##0.00";
+  }
 
   const buffer = await wb.xlsx.writeBuffer();
-  downloadWorkbookBuffer(buffer, `${input.jobNumber || "delivery-receipt"}-DR.xlsx`);
+  downloadWorkbookBuffer(buffer, `${input.jobNumber || "delivery-receipt"}.xlsx`);
 }

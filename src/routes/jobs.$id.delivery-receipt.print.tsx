@@ -255,10 +255,11 @@ function DeliveryReceiptPrintPage() {
         void downloadDeliveryReceiptExcel({
           jobNumber: job.data.job_number,
           quoteNumber: quotation?.quote_number ?? null,
-          date: printProps.date,
+          date: printProps.receiptDate,
           customerName: printCustomer?.customer_name ?? "",
           customerAddress: printCustomer?.address,
           customerTin: printCustomer?.tin_number,
+          terms: printProps.terms,
           clientPoNumber: printProps.clientPoNumber,
           projectName: job.data.project_name,
           priced,
@@ -266,9 +267,12 @@ function DeliveryReceiptPrintPage() {
           lines: displayLines.map((line) => ({
             description: line.description,
             quantity: Number(line.quantity ?? 0),
+            unit: line.unit_of_measure ?? "PCS",
             unitPrice: Number(line.unit_price ?? 0),
             lineTotal: Number(line.line_total ?? 0),
           })),
+          lineSubtotal,
+          vatAmount,
           totalAmount,
         }).then(
           () => toast.success("Excel delivery receipt downloaded"),
